@@ -1,0 +1,3735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShootMail</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;1,700&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080a10;
+      --bg2: #0e1018;
+      --bg3: #141620;
+      --bg4: #1c1f2e;
+      --bd: #232640;
+      --bd2: #313558;
+      --a1: #ff4d6d;
+      /* red — brand */
+      --a2: #ff8c42;
+      /* orange accent */
+      --a3: #4dffc3;
+      /* green ok */
+      --a4: #ffd166;
+      /* amber */
+      --a5: #74b3ff;
+      /* blue info */
+      --text: #e2e5f8;
+      --t2: #6b6f90;
+      --t3: #353858;
+      --glow: rgba(255, 77, 109, .15);
+      --r: 9px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: .5;
+    }
+
+    /* ── LAYOUT ── */
+    .shell {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 228px;
+      background: var(--bg2);
+      border-right: 1px solid var(--bd);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      z-index: 200;
+    }
+
+    /* LOGO */
+    .logo-area {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-svg-wrap {
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .logo-svg-wrap svg {
+      display: block;
+    }
+
+    /* gun recoil animation */
+    @keyframes shoot {
+
+      0%,
+      100% {
+        transform: rotate(0deg) translateX(0)
+      }
+
+      15% {
+        transform: rotate(-8deg) translateX(-2px)
+      }
+
+      30% {
+        transform: rotate(0deg) translateX(0)
+      }
+
+      55% {
+        transform: rotate(-4deg) translateX(-1px)
+      }
+
+      70% {
+        transform: rotate(0deg)
+      }
+    }
+
+    @keyframes letter-fly {
+      0% {
+        opacity: 0;
+        transform: translate(0, 0) rotate(0deg) scale(.5)
+      }
+
+      40% {
+        opacity: 1;
+        transform: translate(18px, -10px) rotate(-15deg) scale(1)
+      }
+
+      80% {
+        opacity: .5;
+        transform: translate(38px, -18px) rotate(-20deg) scale(.8)
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate(52px, -22px) rotate(-25deg) scale(.3)
+      }
+    }
+
+    .gun-g {
+      animation: shoot 3s ease-in-out infinite;
+    }
+
+    .letter-g {
+      animation: letter-fly 3s ease-in-out infinite;
+      transform-origin: 4px 8px;
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .logo-name span {
+      color: var(--a1);
+    }
+
+    .logo-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5px;
+      color: var(--t3);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* NAV */
+    .nav {
+      padding: 12px 10px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .nav-group {
+      margin-bottom: 16px;
+    }
+
+    .nav-lbl {
+      font-size: 8.5px;
+      color: var(--t3);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      padding: 0 10px 5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nb {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13.5px;
+      color: var(--t2);
+      transition: all .15s;
+      border: 1px solid transparent;
+      margin-bottom: 1px;
+      user-select: none;
+    }
+
+    .nb:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .nb.on {
+      background: rgba(255, 77, 109, .08);
+      color: var(--a1);
+      border-color: rgba(255, 77, 109, .15);
+      font-weight: 500;
+    }
+
+    .nb .ico {
+      font-size: 15px;
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .nb .pill {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 99px;
+      background: var(--bg4);
+      color: var(--t2);
+    }
+
+    .nb.on .pill {
+      background: rgba(255, 77, 109, .15);
+      color: var(--a1);
+    }
+
+    .sidebar-foot {
+      padding: 13px 18px;
+      border-top: 1px solid var(--bd);
+      font-size: 10.5px;
+      color: var(--t3);
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.live {
+      background: var(--a3);
+      box-shadow: 0 0 8px var(--a3);
+      animation: blink 2s infinite;
+    }
+
+    .dot.warn {
+      background: var(--a4);
+      box-shadow: 0 0 8px var(--a4);
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ── MAIN ── */
+    .main {
+      margin-left: 228px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      height: 54px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      background: rgba(8, 10, 16, .92);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      flex: 1;
+      letter-spacing: .3px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .sync-lbl {
+      font-size: 10px;
+      color: var(--t3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── VIEWS ── */
+    .view {
+      display: none;
+    }
+
+    .view.on {
+      display: block;
+    }
+
+    .content {
+      padding: 22px;
+      flex: 1;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 15px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      white-space: nowrap;
+    }
+
+    .btn-red {
+      background: var(--a1);
+      color: #fff;
+    }
+
+    .btn-red:hover {
+      background: #ff6b85;
+      box-shadow: 0 0 20px var(--glow);
+    }
+
+    .btn-ghost {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--bd);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--a1);
+      color: var(--a1);
+    }
+
+    .btn-green {
+      background: rgba(77, 255, 195, .12);
+      color: var(--a3);
+      border: 1px solid rgba(77, 255, 195, .2);
+    }
+
+    .btn-green:hover {
+      background: rgba(77, 255, 195, .22);
+    }
+
+    .btn-orange {
+      background: rgba(255, 140, 66, .12);
+      color: var(--a2);
+      border: 1px solid rgba(255, 140, 66, .2);
+    }
+
+    .btn-orange:hover {
+      background: rgba(255, 140, 66, .22);
+    }
+
+    .btn-blue {
+      background: rgba(116, 179, 255, .1);
+      color: var(--a5);
+      border: 1px solid rgba(116, 179, 255, .2);
+    }
+
+    .btn-blue:hover {
+      background: rgba(116, 179, 255, .2);
+    }
+
+    .btn-amber {
+      background: rgba(255, 209, 102, .1);
+      color: var(--a4);
+      border: 1px solid rgba(255, 209, 102, .2);
+    }
+
+    .btn-amber:hover {
+      background: rgba(255, 209, 102, .2);
+    }
+
+    .btn-sm {
+      padding: 5px 11px;
+      font-size: 12px;
+    }
+
+    .btn-xs {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+
+    .card-hd {
+      padding: 13px 17px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+
+    .card-bd {
+      padding: 17px;
+    }
+
+    /* ── STAT CARDS ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 13px;
+      margin-bottom: 20px;
+    }
+
+    .scard {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: var(--r);
+      padding: 17px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .scard:hover {
+      border-color: var(--bd2);
+    }
+
+    .scard::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--cl, var(--a1));
+    }
+
+    .scard.g {
+      --cl: var(--a3)
+    }
+
+    .scard.o {
+      --cl: var(--a2)
+    }
+
+    .scard.b {
+      --cl: var(--a5)
+    }
+
+    .scard.y {
+      --cl: var(--a4)
+    }
+
+    .sc-lbl {
+      font-size: 9.5px;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .sc-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      margin: 5px 0 2px;
+      letter-spacing: .5px;
+    }
+
+    .sc-sub {
+      font-size: 11px;
+      color: var(--t3);
+    }
+
+    .sc-ico {
+      position: absolute;
+      top: 13px;
+      right: 13px;
+      font-size: 22px;
+      opacity: .18;
+    }
+
+    /* ── FORM ── */
+    .fg {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 13px;
+    }
+
+    .fg label {
+      font-size: 11.5px;
+      color: var(--t2);
+      font-weight: 500;
+    }
+
+    .fgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 13px;
+    }
+
+    .fgrid .full {
+      grid-column: 1/-1;
+    }
+
+    .finp {
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color .15s;
+      width: 100%;
+    }
+
+    .finp:focus {
+      border-color: var(--a1);
+    }
+
+    .finp::placeholder {
+      color: var(--t3);
+    }
+
+    textarea.finp {
+      resize: vertical;
+      min-height: 90px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    select.finp {
+      cursor: pointer;
+    }
+
+    .finput {
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 7px 12px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .finput:focus,
+    .finput:hover {
+      border-color: var(--a1);
+    }
+
+    .finput::placeholder {
+      color: var(--t3);
+    }
+
+    select.finput {
+      cursor: pointer;
+    }
+
+    /* ── TABLE ── */
+    .tbl-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 9px 15px;
+      font-size: 9px;
+      color: var(--t3);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      border-bottom: 1px solid var(--bd);
+      background: var(--bg);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(35, 38, 64, .5);
+      transition: background .12s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, .016);
+    }
+
+    td {
+      padding: 11px 15px;
+      vertical-align: middle;
+    }
+
+    /* ── TAGS ── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: 10.5px;
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tr {
+      background: rgba(255, 77, 109, .1);
+      color: var(--a1);
+    }
+
+    .tg {
+      background: rgba(77, 255, 195, .1);
+      color: var(--a3);
+    }
+
+    .to {
+      background: rgba(255, 140, 66, .1);
+      color: var(--a2);
+    }
+
+    .tb {
+      background: rgba(116, 179, 255, .1);
+      color: var(--a5);
+    }
+
+    .ty {
+      background: rgba(255, 209, 102, .1);
+      color: var(--a4);
+    }
+
+    .tn {
+      background: rgba(107, 111, 144, .1);
+      color: var(--t2);
+    }
+
+    /* ── FILTER BAR ── */
+    .fbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ── PROGRESS ── */
+    .prog {
+      height: 5px;
+      background: var(--bg4);
+      border-radius: 99px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+
+    .prog-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--a1);
+      transition: width .4s;
+    }
+
+    .prog-fill.g {
+      background: var(--a3)
+    }
+
+    .prog-fill.b {
+      background: var(--a5)
+    }
+
+    /* ── CHIPS ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 11px;
+      border-radius: 99px;
+      font-size: 12px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .15s;
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: var(--bd2);
+      color: var(--text);
+    }
+
+    .chip.on {
+      background: rgba(255, 77, 109, .1);
+      border-color: rgba(255, 77, 109, .3);
+      color: var(--a1);
+    }
+
+    /* ── PROCESS CARDS ── */
+    .proc-card {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: var(--r);
+      margin-bottom: 9px;
+      overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+      cursor: pointer;
+    }
+
+    .proc-card:hover {
+      border-color: var(--bd2);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, .4);
+    }
+
+    .proc-header {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 13px 17px;
+    }
+
+    .proc-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: var(--bg4);
+      border: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+
+    .proc-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .proc-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .proc-meta {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .proc-meta-item {
+      font-size: 10.5px;
+      color: var(--t2);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .proc-stats {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .proc-stat-box {
+      text-align: center;
+      padding: 7px 11px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 7px;
+    }
+
+    .proc-stat-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .proc-stat-lbl {
+      font-size: 8.5px;
+      color: var(--t3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── TEMPLATE CARDS ── */
+    .tpl-card {
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      padding: 13px 15px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all .15s;
+      position: relative;
+    }
+
+    .tpl-card:hover {
+      border-color: var(--a1);
+      background: rgba(255, 77, 109, .04);
+    }
+
+    .tpl-card.selected {
+      border-color: var(--a1);
+      background: rgba(255, 77, 109, .07);
+      box-shadow: 0 0 0 1px rgba(255, 77, 109, .2);
+    }
+
+    .tpl-name {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tpl-subject {
+      font-size: 12px;
+      color: var(--t2);
+      margin-bottom: 5px;
+    }
+
+    .tpl-preview {
+      font-size: 11px;
+      color: var(--t3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tpl-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--bg4);
+      border: 1px solid var(--bd);
+      color: var(--t2);
+    }
+
+    .tpl-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .tpl-card:hover .tpl-actions {
+      opacity: 1;
+    }
+
+    /* ── DETAIL PANEL ── */
+    .panel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      z-index: 499;
+      display: none;
+      cursor: pointer;
+    }
+
+    .panel-overlay.on {
+      display: block;
+    }
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 680px;
+      background: var(--bg2);
+      border-left: 1px solid var(--bd);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+      box-shadow: -20px 0 60px rgba(0, 0, 0, .7);
+    }
+
+    .detail-panel.open {
+      transform: translateX(0);
+    }
+
+    .dp-head {
+      padding: 17px 21px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+    }
+
+    .dp-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      flex: 1;
+      line-height: 1.3;
+      letter-spacing: .3px;
+    }
+
+    .dp-close {
+      cursor: pointer;
+      color: var(--t2);
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color .15s;
+    }
+
+    .dp-close:hover {
+      color: var(--text);
+    }
+
+    .dp-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 21px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .dp-sec-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--t3);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 9px;
+    }
+
+    .dp-foot {
+      padding: 13px 21px;
+      border-top: 1px solid var(--bd);
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    /* ── RECIPIENT ROW ── */
+    .rr {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 13px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 7px;
+      margin-bottom: 5px;
+      transition: border-color .15s;
+    }
+
+    .rr:hover {
+      border-color: var(--bd2);
+    }
+
+    .rr-ico {
+      font-size: 12px;
+      opacity: .2;
+      transition: opacity .15s;
+    }
+
+    .rr-ico.on {
+      opacity: 1;
+    }
+
+    /* ── TIMELINE ── */
+    .tl-item {
+      display: flex;
+      gap: 13px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(35, 38, 64, .5);
+    }
+
+    .tl-item:last-child {
+      border-bottom: none;
+    }
+
+    .tl-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: var(--bg4);
+      border: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--t2);
+      flex-shrink: 0;
+    }
+
+    .tl-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--a1);
+      margin-bottom: 2px;
+    }
+
+    .tl-note {
+      font-size: 12px;
+      color: var(--t2);
+    }
+
+    /* ── REPLY ITEM ── */
+    .reply-item {
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      padding: 13px;
+      margin-bottom: 7px;
+      transition: border-color .15s;
+    }
+
+    .reply-item:hover {
+      border-color: rgba(255, 77, 109, .3);
+    }
+
+    .reply-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--a5);
+      text-decoration: none;
+      transition: color .15s;
+    }
+
+    .reply-link:hover {
+      color: var(--a1);
+    }
+
+    .attach-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      background: var(--bg4);
+      border: 1px solid var(--bd);
+      color: var(--t2);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── MODAL ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .78);
+      backdrop-filter: blur(5px);
+      z-index: 900;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overlay.on {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: mIn .2s ease;
+    }
+
+    @keyframes mIn {
+      from {
+        opacity: 0;
+        transform: scale(.95) translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0)
+      }
+    }
+
+    .modal-hd {
+      padding: 17px 21px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+
+    .modal-bd {
+      padding: 21px;
+    }
+
+    .modal-ft {
+      padding: 13px 21px;
+      border-top: 1px solid var(--bd);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* ── SETTINGS ── */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .settings-section {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+
+    .settings-section.full {
+      grid-column: 1/-1;
+    }
+
+    .settings-hd {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .settings-ico {
+      font-size: 19px;
+    }
+
+    .settings-lbl {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+
+    .settings-sub {
+      font-size: 11px;
+      color: var(--t3);
+      margin-top: 1px;
+    }
+
+    .settings-bd {
+      padding: 18px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 11px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+    }
+
+    .sb-ok {
+      background: rgba(77, 255, 195, .1);
+      color: var(--a3);
+      border: 1px solid rgba(77, 255, 195, .2);
+    }
+
+    .sb-warn {
+      background: rgba(255, 209, 102, .1);
+      color: var(--a4);
+      border: 1px solid rgba(255, 209, 102, .2);
+    }
+
+    .sb-err {
+      background: rgba(255, 77, 109, .1);
+      color: var(--a1);
+      border: 1px solid rgba(255, 77, 109, .2);
+    }
+
+    /* STEP LIST */
+    .step {
+      display: flex;
+      gap: 13px;
+      padding: 13px 0;
+      border-bottom: 1px solid rgba(35, 38, 64, .5);
+    }
+
+    .step:last-child {
+      border-bottom: none;
+    }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--bg4);
+      border: 2px solid var(--bd);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+      color: var(--t2);
+    }
+
+    .step-num.done {
+      background: rgba(77, 255, 195, .12);
+      border-color: var(--a3);
+      color: var(--a3);
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--t2);
+      line-height: 1.65;
+    }
+
+    .step-desc code {
+      background: var(--bg4);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--a4);
+    }
+
+    /* DASH FILTER BAR */
+    .dash-filter {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 17px;
+      padding: 11px 15px;
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: var(--r);
+      align-items: center;
+    }
+
+    .df-lbl {
+      font-size: 10px;
+      color: var(--t3);
+      font-family: 'JetBrains Mono', monospace;
+      margin-right: 4px;
+    }
+
+    /* EMPTY */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--t3);
+    }
+
+    .empty .eico {
+      font-size: 38px;
+      margin-bottom: 12px;
+      opacity: .35;
+    }
+
+    .empty h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      color: var(--t2);
+      margin-bottom: 5px;
+    }
+
+    .empty p {
+      font-size: 12.5px;
+    }
+
+    /* DIVIDER */
+    hr.div {
+      border: none;
+      border-top: 1px solid var(--bd);
+      margin: 12px 0;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bd2);
+      border-radius: 99px;
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(5px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .fu {
+      animation: fadeUp .25s ease both;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--bg2);
+      border: 1px solid var(--a1);
+      border-radius: 8px;
+      padding: 11px 15px;
+      font-size: 11.5px;
+      color: var(--a1);
+      z-index: 9999;
+      transform: translateY(70px);
+      opacity: 0;
+      transition: all .25s ease;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .6);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    input[type=checkbox] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--a1);
+      cursor: pointer;
+    }
+
+    @media(max-width:900px) {
+      .stat-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <!-- ══════════ SIDEBAR ══════════ -->
+    <aside class="sidebar">
+      <div class="logo-area">
+        <!-- Gun + Letter SVG logo -->
+        <div class="logo-svg-wrap">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- glow bg -->
+            <circle cx="22" cy="22" r="20" fill="rgba(255,77,109,0.08)" />
+            <!-- Gun body -->
+            <g class="gun-g">
+              <!-- barrel -->
+              <rect x="6" y="19" width="18" height="5" rx="2" fill="#ff4d6d" />
+              <!-- handle -->
+              <rect x="14" y="24" width="7" height="9" rx="2" fill="#cc2d4a" />
+              <!-- trigger guard -->
+              <path d="M17 26 Q19 30 22 26" stroke="#cc2d4a" stroke-width="1.5" fill="none" />
+              <!-- grip detail -->
+              <rect x="15" y="26" width="5" height="1.5" rx=".5" fill="#ff6b85" opacity=".6" />
+              <rect x="15" y="28.5" width="5" height="1.5" rx=".5" fill="#ff6b85" opacity=".6" />
+              <!-- muzzle flash -->
+              <path d="M24 21.5 L28 20 L26 22 L29 21 L25 23.5 L28 24 L24 22.5" fill="#ffd166" opacity=".9" />
+            </g>
+            <!-- Flying envelope -->
+            <g class="letter-g" style="transform-origin: 32px 14px;">
+              <rect x="28" y="10" width="12" height="9" rx="1.5" fill="#ff4d6d" />
+              <path d="M28 10.5 L34 15 L40 10.5" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" />
+              <!-- speed lines -->
+              <line x1="26" y1="13" x2="23" y2="13" stroke="#ff4d6d" stroke-width="1" opacity=".5" />
+              <line x1="26" y1="15.5" x2="22" y2="15.5" stroke="#ff4d6d" stroke-width="1" opacity=".3" />
+            </g>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <div class="logo-name">Shoot<span>Mail</span></div>
+          <div class="logo-tag" style="color:var(--a1)">MARINHA DO BRASIL</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav-group">
+          <div class="nav-lbl">Visão Geral</div>
+          <div class="nb on" onclick="goTab('dash')"><span class="ico">◈</span>Dashboard</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-lbl">Gestão</div>
+          <div class="nb" onclick="goTab('suppliers')"><span class="ico">🏭</span>Fornecedores<span class="pill"
+              id="nb-sup">0</span></div>
+          <div class="nb" onclick="goTab('templates')"><span class="ico">📋</span>Modelos<span class="pill"
+              id="nb-tpl">0</span></div>
+          <div class="nb" onclick="goTab('compose')"><span class="ico">🔫</span>Disparar Email</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-lbl">Rastreamento</div>
+          <div class="nb" onclick="goTab('processes')"><span class="ico">◉</span>Processos<span class="pill"
+              id="nb-proc">0</span></div>
+          <div class="nb" onclick="goTab('replies')"><span class="ico">💬</span>Respostas<span class="pill"
+              id="nb-rep">0</span></div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-lbl">Sistema</div>
+          <div class="nb" onclick="goTab('settings')"><span class="ico">⚙️</span>Configurações</div>
+        </div>
+      </nav>
+
+      <div class="sidebar-foot" style="flex-direction: column; align-items: center; gap: 8px; padding-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 7px; width: 100%; justify-content: flex-start;">
+          <div class="dot warn" id="foot-dot"></div>
+          <span id="foot-txt">Configurar API</span>
+        </div>
+        <div
+          style="font-size: 8.5px; color: var(--a1); text-align: center; width: 100%; margin-top: 4px; opacity: 0.8;">
+          Idealizado e desenvolvido por COpAb - Sobressalente - V1.2026
+        </div>
+      </div>
+    </aside>
+
+    <!-- ══════════ MAIN ══════════ -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-actions">
+          <span class="sync-lbl" id="sync-lbl" style="display:none"></span>
+          <button class="btn btn-ghost btn-sm" onclick="syncAll()" id="btn-sync" style="display:none">↻ Sync</button>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- ══ DASHBOARD ══ -->
+        <div class="view on" id="view-dash">
+          <div class="dash-filter">
+            <span class="df-lbl">FILTRAR:</span>
+            <select class="finput" id="df-type" onchange="renderDash()" style="font-size:12px;padding:5px 10px">
+              <option value="">Todos os tipos</option>
+              <option>Metal</option>
+              <option>Plástico</option>
+              <option>Madeira</option>
+              <option>Tecido</option>
+              <option>Eletrônico</option>
+              <option>Químico</option>
+              <option>Embalagem</option>
+              <option>Outro</option>
+            </select>
+            <select class="finput" id="df-mat" onchange="renderDash()" style="font-size:12px;padding:5px 10px">
+              <option value="">Todos os materiais</option>
+            </select>
+            <select class="finput" id="df-period" onchange="renderDash()" style="font-size:12px;padding:5px 10px">
+              <option value="all">Todo o período</option>
+              <option value="today">Hoje</option>
+              <option value="week">Esta semana</option>
+              <option value="month">Este mês</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="resetDashF()">↺</button>
+          </div>
+          <div class="stat-row" id="dash-stats"></div>
+          <!-- Timeline chart -->
+          <div class="card" style="margin-bottom:15px">
+            <div class="card-hd">
+              <div class="card-title">📈 Atividade ao Longo do Tempo</div>
+              <select class="finput" id="df-chart-period" onchange="renderDash()"
+                style="font-size:11px;padding:4px 8px">
+                <option value="30">Últimos 30 dias</option>
+                <option value="60">Últimos 60 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="180">Últimos 6 meses</option>
+              </select>
+            </div>
+            <div class="card-bd" style="padding:16px">
+              <canvas id="dash-chart" style="width:100%;height:180px;display:block"></canvas>
+              <div style="display:flex;gap:20px;justify-content:center;margin-top:10px;font-size:11px;color:var(--t2)">
+                <span><span
+                    style="display:inline-block;width:12px;height:3px;background:#ff4d6d;border-radius:2px;vertical-align:middle;margin-right:5px"></span>Emails
+                  enviados</span>
+                <span><span
+                    style="display:inline-block;width:12px;height:3px;background:#4dffc3;border-radius:2px;vertical-align:middle;margin-right:5px"></span>Respostas
+                  recebidas</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:15px">
+            <div class="card">
+              <div class="card-hd">
+                <div class="card-title">◉ Processos Recentes</div><button class="btn btn-ghost btn-sm"
+                  onclick="goTab('processes')">Ver todos</button>
+              </div>
+              <div id="dash-recent"></div>
+            </div>
+            <div class="card">
+              <div class="card-hd">
+                <div class="card-title">🏭 Por Tipo de Material</div>
+              </div>
+              <div class="card-bd" id="dash-types"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ FORNECEDORES ══ -->
+        <div class="view" id="view-suppliers">
+          <div class="card">
+
+            <!-- Barra de ações: duas linhas separadas para não transbordar -->
+            <div
+              style="padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;flex-direction:column;gap:10px">
+              <!-- Linha 1: botões de ação -->
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-red" onclick="openNewSupModal()"
+                  style="font-weight:700;gap:6px;padding:8px 18px">
+                  <span style="font-size:17px;line-height:1">＋</span> Novo Fornecedor
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="openImportModal()">📥 Importar CSV</button>
+                <button class="btn btn-ghost btn-sm" onclick="exportSupCSV()">📤 Exportar CSV</button>
+              </div>
+              <!-- Linha 2: busca e filtros -->
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input class="finput" type="text" placeholder="🔍 Buscar nome, email ou material..." id="sup-q"
+                  oninput="renderSuppliers()" style="flex:1;min-width:160px">
+                <input class="finput" type="text" placeholder="🔢 Código Item..." id="sup-qc"
+                  oninput="renderSuppliers()" style="width:130px">
+                <select class="finput" id="sup-ft" onchange="renderSuppliers()" style="min-width:120px">
+                  <option value="">Todos os tipos</option>
+                  <option>Metal</option>
+                  <option>Plástico</option>
+                  <option>Madeira</option>
+                  <option>Tecido</option>
+                  <option>Eletrônico</option>
+                  <option>Químico</option>
+                  <option>Embalagem</option>
+                  <option>Outro</option>
+                </select>
+                <select class="finput" id="sup-fm" onchange="renderSuppliers()" style="min-width:140px">
+                  <option value="">Todos os materiais</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Barra de ações em massa (aparece ao selecionar checkboxes) -->
+            <div id="sup-bulk-bar"
+              style="display:none;padding:8px 16px;background:rgba(255,77,109,.07);border-bottom:1px solid rgba(255,77,109,.2);flex-wrap:wrap;align-items:center;gap:8px">
+              <span id="sup-bulk-count"
+                style="font-size:12px;color:var(--a1);font-family:'JetBrains Mono',monospace;flex:1"></span>
+              <button class="btn btn-ghost btn-xs" onclick="bulkDeleteSups()" style="color:var(--a1)">🗑 Excluir
+                selecionados</button>
+              <button class="btn btn-ghost btn-xs" onclick="bulkToggleSups('inactive')">⏸ Desativar</button>
+              <button class="btn btn-ghost btn-xs" onclick="bulkToggleSups('active')">▶ Ativar</button>
+            </div>
+
+            <!-- Tabela -->
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:32px"><input type="checkbox" id="sup-cb-all" onchange="toggleAllSup(this)"></th>
+                    <th>Fornecedor</th>
+                    <th>Email(s)</th>
+                    <th>Telefone / Código</th>
+                    <th>Tipo</th>
+                    <th>Materiais</th>
+                    <th style="text-align:center">Enviados</th>
+                    <th style="text-align:center">Status</th>
+                    <th style="text-align:center;width:150px">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="sup-tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Estado vazio -->
+            <div id="sup-empty" class="empty" style="display:none;padding:40px 20px">
+              <div class="eico">🏭</div>
+              <h3>Nenhum fornecedor cadastrado</h3>
+              <p>Clique em <strong>"＋ Novo Fornecedor"</strong> para adicionar o primeiro</p>
+              <button class="btn btn-red btn-sm" onclick="openNewSupModal()" style="margin-top:12px">＋ Novo
+                Fornecedor</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ MODELOS (TEMPLATES) ══ -->
+        <div class="view" id="view-templates">
+          <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:18px;align-items:start">
+
+            <!-- Left: list -->
+            <div>
+              <div class="card">
+                <div class="card-hd">
+                  <div class="card-title">📋 Modelos Salvos</div>
+                  <!-- NO "+ Novo Modelo" here — use the editor on the right (clique em "Limpar" or start typing) -->
+                </div>
+                <div class="card-bd" style="padding:13px">
+                  <div id="tpl-list-empty" class="empty" style="display:none;padding:30px 0">
+                    <div class="eico">📋</div>
+                    <h3>Sem modelos</h3>
+                    <p>Preencha o formulário ao lado e clique em "Salvar Modelo"</p>
+                  </div>
+                  <div id="tpl-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: editor -->
+            <div class="card" id="tpl-editor-card">
+              <div class="card-hd">
+                <div class="card-title" id="tpl-editor-title">✏️ Novo Modelo</div>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-ghost btn-sm" onclick="newTemplate()"
+                    title="Limpar formulário para criar novo">🔄 Novo</button>
+                  <button class="btn btn-ghost btn-sm" id="tpl-del-btn" style="display:none;color:var(--a1)"
+                    onclick="deleteTplEditing()">🗑 Excluir</button>
+                  <button class="btn btn-red btn-sm" onclick="saveTpl()">💾 Salvar</button>
+                </div>
+              </div>
+              <div class="card-bd">
+                <div class="fg">
+                  <label>Nome do Modelo *</label>
+                  <input class="finp" type="text" id="tpl-name"
+                    placeholder="Ex: Cotação Padrão, Follow-up, Apresentação...">
+                </div>
+                <div class="fg">
+                  <label>Categoria</label>
+                  <select class="finp" id="tpl-cat">
+                    <option value="">Sem categoria</option>
+                    <option>Cotação</option>
+                    <option>Follow-up</option>
+                    <option>Apresentação</option>
+                    <option>Confirmação</option>
+                    <option>Negociação</option>
+                    <option>Outro</option>
+                  </select>
+                </div>
+                <div class="fg">
+                  <label>Assunto do Email *</label>
+                  <input class="finp" type="text" id="tpl-subject"
+                    placeholder="Ex: Solicitação de Cotação — {mes} {ano}">
+                </div>
+                <div class="fg">
+                  <label>Corpo do Email *</label>
+                  <textarea class="finp" id="tpl-body" style="min-height:180px"
+                    placeholder="Use {nome} para o nome do fornecedor, {empresa} para a empresa, {tipo} para o tipo de material..."></textarea>
+                </div>
+                <div
+                  style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:10px 13px;font-size:11.5px;color:var(--t2);line-height:1.7">
+                  <strong style="color:var(--a4)">Variáveis disponíveis:</strong><br>
+                  <code style="font-family:'JetBrains Mono',monospace;font-size:10.5px">{nome}</code> — Nome do
+                  fornecedor &nbsp;·&nbsp;
+                  <code style="font-family:'JetBrains Mono',monospace;font-size:10.5px">{empresa}</code> — Nome da
+                  empresa &nbsp;·&nbsp;
+                  <code style="font-family:'JetBrains Mono',monospace;font-size:10.5px">{tipo}</code> — Tipo de material
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ══ COMPOSE ══ -->
+        <div class="view" id="view-compose">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+
+            <!-- Left: email form -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+
+              <!-- Template selector -->
+              <div class="card">
+                <div class="card-hd">
+                  <div class="card-title">📋 Usar Modelo</div>
+                </div>
+                <div class="card-bd" style="padding:13px">
+                  <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <select class="finput" id="tpl-select" style="flex:1" onchange="applyTemplate()">
+                      <option value="">— Selecionar modelo salvo —</option>
+                    </select>
+                    <button class="btn btn-ghost btn-sm" onclick="goTab('templates')"
+                      title="Gerenciar modelos">✏️</button>
+                  </div>
+                  <div id="tpl-preview-box"
+                    style="display:none;background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:10px 13px;">
+                    <div
+                      style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-bottom:2px">
+                      ASSUNTO DO MODELO</div>
+                    <div style="font-size:12px;font-weight:600;margin-bottom:6px" id="tpl-prev-sub">—</div>
+                    <div
+                      style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-bottom:2px">
+                      PRÉVIA</div>
+                    <div
+                      style="font-size:11px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                      id="tpl-prev-body">—</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-hd">
+                  <div class="card-title">🔫 Compor Email</div>
+                </div>
+                <div class="card-bd">
+                  <div class="fg">
+                    <label>Assunto / Nome do Processo *</label>
+                    <input class="finp" type="text" id="c-subject" placeholder="Ex: Cotação de Materiais — Março 2025">
+                  </div>
+                  <div class="fg">
+                    <label>Corpo do Email *</label>
+                    <textarea class="finp" id="c-body" placeholder="Use {nome} para personalizar. Ex: Olá, {nome}!"
+                      style="min-height:150px"></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:flex-end">
+                    <div class="fg" style="flex:1;margin-bottom:0">
+                      <label>Agendamento (opcional)</label>
+                      <input class="finp" type="datetime-local" id="c-sched">
+                    </div>
+                    <div style="flex:1;margin-bottom:0">
+                      <label>Anexos (Fotos, PDF, etc.)</label>
+                      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('c-att-input').click()"
+                        style="width:100%;justify-content:center">📎 Anexar Arquivos</button>
+                      <input type="file" id="c-att-input" multiple style="display:none" onchange="updAttList()">
+                    </div>
+                  </div>
+                  <div id="c-att-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+                  <div style="display:flex;justify-content:flex-end;margin-top:10px">
+                    <button class="btn btn-ghost btn-xs" onclick="saveCurrentAsTemplate()"
+                      title="Salvar este email como modelo">💾 Salvar como Modelo</button>
+                  </div>
+                  <!-- Auto-dispatch section -->
+                  <div
+                    style="margin-top:12px;padding:12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg3)">
+                    <label
+                      style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;margin-bottom:0">
+                      <input type="checkbox" id="c-auto-enable" onchange="toggleAutoDispatch()"
+                        style="accent-color:var(--a3)">
+                      <span>🔁 Disparo Automático (Re-enviar a cada X dias)</span>
+                    </label>
+                    <div id="c-auto-opts" style="display:none;margin-top:10px;display:none">
+                      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <div class="fg" style="flex:1;min-width:120px;margin-bottom:0">
+                          <label style="font-size:11px">Intervalo (dias)</label>
+                          <input class="finp" type="number" id="c-auto-days" value="2" min="1" max="30"
+                            style="font-family:'JetBrains Mono',monospace">
+                        </div>
+                        <div class="fg" style="flex:1;min-width:120px;margin-bottom:0">
+                          <label style="font-size:11px">Máximo de re-envios</label>
+                          <input class="finp" type="number" id="c-auto-max" value="3" min="1" max="10"
+                            style="font-family:'JetBrains Mono',monospace">
+                        </div>
+                        <div class="fg" style="flex:1;min-width:140px;margin-bottom:0">
+                          <label style="font-size:11px">Parar quando</label>
+                          <select class="finp" id="c-auto-stop">
+                            <option value="reply">Fornecedor responder</option>
+                            <option value="never">Não parar automaticamente</option>
+                            <option value="max">Somente ao atingir limite</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div
+                        style="margin-top:8px;font-size:11px;color:var(--t3);padding:6px 10px;background:rgba(255,195,0,.06);border-radius:6px;border:1px solid rgba(255,195,0,.15)">
+                        ⚡ O re-envio automático funciona em segundo plano enquanto o ShootMail estiver aberto. Para
+                        garantia, use o Apps Script (configuração de gatilho temporal).
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="previewCompose()">👁
+                  Prévia</button>
+                <button class="btn btn-red" id="btn-do-send"
+                  style="flex:2;justify-content:center;font-size:15px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.5px"
+                  onclick="doSend()">🔫 DISPARAR</button>
+              </div>
+            </div>
+
+            <!-- Right: recipients -->
+            <div class="card">
+              <div class="card-hd">
+                <div class="card-title">🎯 Destinatários</div><span
+                  style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--a1)" id="c-sel-count">0
+                  selecionados</span>
+              </div>
+              <div class="card-bd">
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                  <input class="finput" type="text" placeholder="🔍 Filtrar nomes (Ex: Aço)..." id="c-rec-q"
+                    oninput="applyChipF()" style="flex:1;min-width:140px">
+                  <input class="finput" type="text" placeholder="🔢 Código Item..." id="c-rec-qc" oninput="applyChipF()"
+                    style="width:130px">
+                </div>
+                <div style="font-size:11.5px;color:var(--t2);margin-bottom:5px">Filtrar por tipo de material</div>
+                <div class="chips" id="c-type-chips"></div>
+                <div style="font-size:11.5px;color:var(--t2);margin:11px 0 5px">Filtrar por material específico</div>
+                <div class="chips" id="c-mat-chips"></div>
+                <hr class="div">
+                <div style="font-size:11.5px;color:var(--t2);margin-bottom:7px">Seleção individual</div>
+                <div id="c-rec-list"
+                  style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:2px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ PROCESSOS ══ -->
+        <div class="view" id="view-processes">
+          <div class="fbar" style="margin-bottom:13px">
+            <input class="finput" type="text" placeholder="🔍 Buscar processo..." id="proc-q"
+              oninput="renderProcesses()" style="min-width:220px">
+            <select class="finput" id="proc-fs" onchange="renderProcesses()">
+              <option value="">Todos os status</option>
+              <option value="active">Em andamento</option>
+              <option value="replied">Com respostas</option>
+              <option value="pending">Agendado</option>
+            </select>
+            <select class="finput" id="proc-ft" onchange="renderProcesses()">
+              <option value="">Todos os tipos</option>
+              <option>Metal</option>
+              <option>Plástico</option>
+              <option>Madeira</option>
+              <option>Tecido</option>
+              <option>Eletrônico</option>
+              <option>Químico</option>
+              <option>Embalagem</option>
+              <option>Outro</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadProcesses()">↻</button>
+          </div>
+          <div id="proc-list"></div>
+          <div id="proc-empty" class="empty" style="display:none">
+            <div class="eico">◉</div>
+            <h3>Nenhum processo</h3>
+            <p>Dispare um email para criar um processo</p>
+          </div>
+        </div>
+
+        <!-- ══ RESPOSTAS ══ -->
+        <div class="view" id="view-replies">
+          <div class="fbar" style="margin-bottom:13px">
+            <input class="finput" type="text" placeholder="🔍 Buscar..." id="rep-q" oninput="renderReplies()"
+              style="min-width:220px">
+            <select class="finput" id="rep-fp" onchange="renderReplies()">
+              <option value="">Todos os processos</option>
+            </select>
+            <button class="btn btn-amber btn-sm" onclick="checkReplies()">📬 Verificar Gmail</button>
+            <span id="rep-sync-status"
+              style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-left:5px"></span>
+          </div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title">💬 Respostas Recebidas</div>
+              <span id="rep-summary"
+                style="font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace">—</span>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fornecedor</th>
+                    <th>Processo</th>
+                    <th>Data/Hora</th>
+                    <th>Prévia</th>
+                    <th>Anexos</th>
+                    <th>Link</th>
+                  </tr>
+                </thead>
+                <tbody id="rep-tbody"></tbody>
+              </table>
+            </div>
+            <div id="rep-empty" class="empty" style="display:none">
+              <div class="eico">💬</div>
+              <h3>Sem respostas</h3>
+              <p>Respostas dos fornecedores aparecerão aqui</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ CONFIGURAÇÕES ══ -->
+        <div class="view" id="view-settings">
+          <div class="settings-grid">
+
+            <div class="settings-section">
+              <div class="settings-hd">
+                <span class="settings-ico">✉️</span>
+                <div>
+                  <div class="settings-lbl">Gmail Remetente</div>
+                  <div class="settings-sub">Conta que enviará todos os emails</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div class="fg"><label>Email Gmail *</label><input class="finp" type="email" id="cfg-gmail"
+                    placeholder="seuemail@gmail.com"></div>
+                <div class="fg"><label>Nome do Remetente</label><input class="finp" type="text" id="cfg-gname"
+                    placeholder="Compras — Minha Empresa"></div>
+                <div
+                  style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:11px 13px;margin-bottom:13px;font-size:11.5px;color:var(--t2);line-height:1.7">
+                  ⚠️ O envio usa <strong style="color:var(--a4)">Google Apps Script</strong> na sua planilha — sem
+                  senha, usa autorização da sua conta Google automaticamente.
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <span class="status-badge sb-warn" id="gmail-badge">○ Não configurado</span>
+                  <button class="btn btn-red btn-sm" onclick="saveGmailCfg()">💾 Salvar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-hd">
+                <span class="settings-ico">📊</span>
+                <div>
+                  <div class="settings-lbl">Google Sheets</div>
+                  <div class="settings-sub">Planilha onde os dados são salvos</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div class="fg"><label>ID da Planilha *</label><input class="finp" type="text" id="cfg-sid"
+                    placeholder="Cole o ID da URL da planilha"><span
+                    style="font-size:10.5px;color:var(--t3);margin-top:3px">URL: .../spreadsheets/d/<strong
+                      style="color:var(--a4)">ID</strong>/edit</span></div>
+                <div class="fg"><label>URL do Web App (Apps Script) *</label><input class="finp" type="text"
+                    id="cfg-url" placeholder="https://script.google.com/macros/s/.../exec"></div>
+                <div
+                  style="background:rgba(77,255,195,.05);border:1px solid rgba(77,255,195,.15);border-radius:7px;padding:10px 13px;font-size:11px;color:var(--t2);line-height:1.7;margin-top:4px">
+                  ⚠️ <strong style="color:var(--a3)">Configuração obrigatória no Apps Script:</strong> Ao publicar o Web
+                  App, defina <strong>"Executar como: Eu"</strong> e <strong>"Quem tem acesso: Qualquer
+                    pessoa"</strong>. O script deve implementar <code
+                    style="font-family:'JetBrains Mono',monospace;font-size:10px">doGet(e)</code> (não doPost) para
+                  evitar erro de CORS.
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+                  <span class="status-badge sb-warn" id="sheets-badge">○ Não configurado</span>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-ghost btn-sm" onclick="testConn()">🔌 Testar</button>
+                    <button class="btn btn-red btn-sm" onclick="saveSheetsCfg()">💾 Salvar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-hd">
+                <span class="settings-ico">🤖</span>
+                <div>
+                  <div class="settings-lbl">Automação Gmail</div>
+                  <div class="settings-sub">Sincronização automática em segundo plano</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div
+                  style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:11px 13px;margin-bottom:13px;font-size:11.5px;color:var(--t2);line-height:1.7">
+                  Ative para o sistema verificar novas respostas do Gmail a cada <strong style="color:var(--a3)">15
+                    minutos</strong> automaticamente no servidor.
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <span class="status-badge" id="sync-status-badge">○ Carregando...</span>
+                  <button class="btn btn-sm" id="btn-toggle-sync" onclick="toggleAutoSync()">Aguarde...</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section full">
+              <div class="settings-hd">
+                <span class="settings-ico">🚀</span>
+                <div>
+                  <div class="settings-lbl">Como Configurar — Passo a Passo</div>
+                  <div class="settings-sub">Conecte o ShootMail à sua conta Google</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div class="step">
+                  <div class="step-num">1</div>
+                  <div>
+                    <div class="step-title">Criar planilha no Google Sheets</div>
+                    <div class="step-desc">Acesse <a href="https://sheets.new" target="_blank"
+                        style="color:var(--a5)">sheets.new</a> e crie uma planilha nova. Copie o ID da URL:
+                      <code>.../d/SEU_ID_AQUI/edit</code>
+                    </div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">2</div>
+                  <div>
+                    <div class="step-title">Instalar o Apps Script</div>
+                    <div class="step-desc">Na planilha: <code>Extensões → Apps Script</code> → apague o código padrão →
+                      cole o arquivo <code>google_apps_script.js</code> → salve <code>Ctrl+S</code></div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">3</div>
+                  <div>
+                    <div class="step-title">Executar Setup (1ª vez)</div>
+                    <div class="step-desc">Selecione a função <code>setupPlanilha</code> → clique ▶ Executar → autorize
+                      as permissões. As 6 abas serão criadas automaticamente.</div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">4</div>
+                  <div>
+                    <div class="step-title">Publicar como Web App</div>
+                    <div class="step-desc"><code>Implantar → Nova implantação</code> · Tipo: <code>App da Web</code> ·
+                      Executar como: <code>Eu mesmo</code> · Acesso: <code>Qualquer pessoa</code> → copie a URL gerada
+                    </div>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">5</div>
+                  <div>
+                    <div class="step-title">Ativar verificação automática de respostas</div>
+                    <div class="step-desc">Na planilha: menu <code>⚡ ShootMail → Ativar Verificação Automática</code> —
+                      verifica respostas a cada 15 min</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section full">
+              <div class="settings-hd"><span class="settings-ico">📡</span>
+                <div>
+                  <div class="settings-lbl">Status da Conexão</div>
+                  <div class="settings-sub">Diagnóstico em tempo real</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+                  <div
+                    style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:13px;text-align:center">
+                    <div style="font-size:22px;margin-bottom:7px" id="ci-api">⬜</div>
+                    <div style="font-size:12px;font-weight:600;margin-bottom:2px">Apps Script API</div>
+                    <div style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace" id="cl-api">Não
+                      testado</div>
+                  </div>
+                  <div
+                    style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:13px;text-align:center">
+                    <div style="font-size:22px;margin-bottom:7px" id="ci-sh">⬜</div>
+                    <div style="font-size:12px;font-weight:600;margin-bottom:2px">Google Sheets</div>
+                    <div style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace" id="cl-sh">Não
+                      testado</div>
+                  </div>
+                  <div
+                    style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:13px;text-align:center">
+                    <div style="font-size:22px;margin-bottom:7px" id="ci-gm">⬜</div>
+                    <div style="font-size:12px;font-weight:600;margin-bottom:2px">Gmail</div>
+                    <div style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace" id="cl-gm">Não
+                      configurado</div>
+                  </div>
+                </div>
+                <div style="margin-top:13px;display:flex;gap:8px">
+                  <button class="btn btn-ghost" onclick="testConn()">🔌 Testar Conexão</button>
+                  <button class="btn btn-blue" onclick="syncAll()">↻ Sincronizar Tudo</button>
+                </div>
+                <div id="conn-err"
+                  style="display:none;margin-top:11px;padding:11px;background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.2);border-radius:7px;font-size:11px;color:var(--a1);font-family:'JetBrains Mono',monospace">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </main>
+  </div><!-- /shell -->
+
+  <!-- ══ DETAIL PANEL ══ -->
+  <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+  <div class="detail-panel" id="detail-panel">
+    <div class="dp-head">
+      <div>
+        <div class="dp-title" id="dp-title">—</div>
+        <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap" id="dp-tags"></div>
+      </div>
+      <span class="dp-close" onclick="closePanel()">✕</span>
+    </div>
+    <div class="dp-body" id="dp-body"></div>
+    <div class="dp-foot" id="dp-foot"></div>
+  </div>
+
+  <!-- ══ MODALS ══ -->
+
+  <!-- Supplier modal -->
+  <div class="overlay" id="modal-sup">
+    <div class="modal">
+      <div class="modal-hd">
+        <div class="modal-title" id="modal-sup-title">+ Novo Fornecedor</div><button class="btn btn-ghost btn-sm"
+          onclick="closeModal('modal-sup')">✕</button>
+      </div>
+      <div class="modal-bd">
+        <div class="fgrid">
+          <div class="fg"><label>Nome / Razão Social *</label><input class="finp" type="text" id="s-name"
+              placeholder="Ex: Aço Brasil Ltda"></div>
+          <div class="fg"><label>Email Principal *</label><input class="finp" type="email" id="s-email"
+              placeholder="contato@empresa.com"></div>
+          <div class="fg"><label>Telefone</label><input class="finp" type="text" id="s-phone"
+              placeholder="(11) 9 0000-0000"></div>
+          <div class="fg"><label>Email 2 (opcional)</label><input class="finp" type="email" id="s-email2"
+              placeholder="outro@empresa.com"></div>
+          <div class="fg"><label>Email 3 (opcional)</label><input class="finp" type="email" id="s-email3"
+              placeholder="terceiro@empresa.com"></div>
+
+          <div class="fg"><label>Tipo de Material *</label>
+            <select class="finp" id="s-type" onchange="handleNewType(this)">
+              <option value="">Selecione...</option>
+              <!-- Dinamicamente preenchido -->
+            </select>
+          </div>
+          <div class="fg"><label>CNPJ</label><input class="finp" type="text" id="s-cnpj"
+              placeholder="00.000.000/0001-00"></div>
+
+          <div class="fg"><label>Código do Item</label><input class="finp" type="text" id="s-code"
+              placeholder="Ex: ABC-123"></div>
+          <div class="fg"><label>Materiais *</label><input class="finp" type="text" id="s-mats"
+              placeholder="Ex: Aço inox, Alumínio"></div>
+
+          <div class="fg"><label>Cidade / UF</label><input class="finp" type="text" id="s-city"
+              placeholder="São Paulo, SP"></div>
+          <div class="fg"><label>Status</label><select class="finp" id="s-status">
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+            </select></div>
+          <div class="fg full"><label>Observações</label><textarea class="finp" id="s-notes"
+              placeholder="Notas internas..."></textarea></div>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="closeModal('modal-sup')">Cancelar</button>
+        <button class="btn btn-red" onclick="saveSupplier()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview modal -->
+  <div class="overlay" id="modal-preview">
+    <div class="modal" style="max-width:500px">
+      <div class="modal-hd">
+        <div class="modal-title">👁 Prévia do Email</div><button class="btn btn-ghost btn-sm"
+          onclick="closeModal('modal-preview')">✕</button>
+      </div>
+      <div class="modal-bd">
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:14px">
+          <div style="font-size:9.5px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-bottom:3px">ASSUNTO
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:13px" id="pv-subject">—</div>
+          <div style="font-size:9.5px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-bottom:3px">CORPO
+          </div>
+          <div style="font-size:13px;white-space:pre-wrap;line-height:1.65;color:var(--t2)" id="pv-body">—</div>
+        </div>
+        <div style="margin-top:9px;font-size:12px;color:var(--t3)">Para <strong style="color:var(--a1)"
+            id="pv-count">0</strong> destinatários</div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="closeModal('modal-preview')">Fechar</button>
+        <button class="btn btn-red" id="btn-confirm-send" onclick="closeModal('modal-preview');doSend()">🔫 Confirmar
+          Disparo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save-as-template modal -->
+  <div class="overlay" id="modal-save-tpl">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-hd">
+        <div class="modal-title">💾 Salvar como Modelo</div><button class="btn btn-ghost btn-sm"
+          onclick="closeModal('modal-save-tpl')">✕</button>
+      </div>
+      <div class="modal-bd">
+        <div class="fg"><label>Nome do Modelo *</label><input class="finp" type="text" id="stpl-name"
+            placeholder="Ex: Cotação Padrão Q1"></div>
+        <div class="fg"><label>Categoria</label>
+          <select class="finp" id="stpl-cat">
+            <option value="">Sem categoria</option>
+            <option>Cotação</option>
+            <option>Follow-up</option>
+            <option>Apresentação</option>
+            <option>Confirmação</option>
+            <option>Negociação</option>
+            <option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="closeModal('modal-save-tpl')">Cancelar</button>
+        <button class="btn btn-red" onclick="doSaveAsTemplate()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import CSV Modal -->
+  <div class="overlay" id="modal-import">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-hd">
+        <div class="modal-title">⬆ Importar via CSV</div><button class="btn btn-ghost btn-sm"
+          onclick="closeModal('modal-import')">✕</button>
+      </div>
+      <div class="modal-bd">
+        <div id="import-drop" onclick="document.getElementById('csv-file-in').click()"
+          style="border:2px dashed var(--bd2);border-radius:10px;padding:26px;text-align:center;cursor:pointer">
+          <div style="font-size:32px;margin-bottom:8px;opacity:.5">📂</div>
+          <div style="font-weight:600;margin-bottom:5px">Clique para selecionar o CSV</div>
+          <div style="font-size:11.5px;color:var(--t3)">Colunas: Nome, Email, Email2, Email3, Tipo_Material, Materiais,
+            Telefone, CNPJ, Cidade_UF</div>
+        </div>
+        <input type="file" id="csv-file-in" accept=".csv" style="display:none" onchange="readImportCSV(this)">
+        <div id="import-preview" style="display:none;margin-top:13px">
+          <div style="font-size:11px;color:var(--t2);margin-bottom:7px" id="import-count"></div>
+          <div class="card"
+            style="max-height:180px;overflow-y:auto;background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:10px"
+            id="import-list"></div>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancelar</button>
+        <button class="btn btn-red" id="import-confirm-btn" style="display:none" onclick="confirmImport()">✅
+          Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reply Viewer Modal -->
+  <div class="overlay" id="modal-reply-view">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-hd">
+        <div class="modal-title" id="rv-supplier">—</div>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-reply-view')">✕</button>
+      </div>
+      <div style="padding:16px 22px;border-bottom:1px solid var(--bd)">
+        <div style="font-size:15px;font-weight:600;margin-bottom:9px" id="rv-subject">—</div>
+        <div
+          style="display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace">
+          <span>📅 <span id="rv-date">—</span></span>
+          <span>📁 <span id="rv-proc">—</span></span>
+        </div>
+      </div>
+      <div
+        style="padding:20px 22px;font-size:13px;color:var(--t2);line-height:1.75;white-space:pre-wrap;min-height:80px;max-height:300px;overflow-y:auto"
+        id="rv-body">—</div>
+      <div id="rv-att-wrap" style="display:none;padding:12px 22px;border-top:1px solid var(--bd);background:var(--bg3)">
+        <div
+          style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">
+          📎 Anexos</div>
+        <div id="rv-att-list" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="closeModal('modal-reply-view')">Fechar</button>
+        <button class="btn btn-amber" onclick="printReplyPDF()">🖨 Baixar PDF</button>
+        <a class="btn btn-blue" id="rv-gmail-link" href="#" target="_blank">🔗 Abrir no Gmail</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span id="toast-msg"></span></div>
+
+  <!-- ══════════ SCRIPT ══════════ -->
+  <script>
+
+    // ══ STATE ══
+    let CFG = { apiUrl: '', sheetId: '', gmailEmail: '', gmailName: '' };
+    let S = { suppliers: [], processes: [], replies: [], templates: [], types: ['Metal', 'Plástico', 'Madeira', 'Tecido', 'Eletrônico', 'Químico', 'Embalagem', 'Outro'], editSup: null, isSending: false, autoSync: false };
+    let connected = false;
+    let _editTplId = null;
+
+    function loadAll() {
+      try { const c = localStorage.getItem('sm_cfg'); if (c) CFG = { ...CFG, ...JSON.parse(c) }; } catch (e) { }
+      try { const s = localStorage.getItem('sm_state'); if (s) S = { ...S, ...JSON.parse(s) }; } catch (e) { }
+    }
+    function saveCfg() { localStorage.setItem('sm_cfg', JSON.stringify(CFG)); }
+    function saveState() { localStorage.setItem('sm_state', JSON.stringify(S)); }
+
+    // ══ DEMO DATA ══
+    function initDemo() {
+      if (S.suppliers.length) return;
+      S.suppliers = [
+        { id: 1, name: 'Aço Brasil Ltda', email: 'comercial@acobrasil.com', email2: 'vendas@acobrasil.com', email3: '', type: 'Metal', mats: 'Aço inox, Ferro fundido', phone: '(11) 3000-1234', cnpj: '12.345.678/0001-90', city: 'São Paulo, SP', status: 'active', notes: 'Fornecedor principal', sent: 2, itemCode: 'AC01' },
+        { id: 2, name: 'PlástiCor Indústria', email: 'vendas@plasticor.com.br', email2: '', email3: '', type: 'Plástico', mats: 'PVC, Polipropileno', phone: '(19) 3200-5678', cnpj: '98.765.432/0001-10', city: 'Campinas, SP', status: 'active', notes: '', sent: 1, itemCode: 'PL02' },
+        { id: 3, name: 'MadeiraMix', email: 'contato@madeiramix.com', email2: '', email3: '', type: 'Madeira', mats: 'MDF, Pinus, Cedro', phone: '(41) 3100-9900', cnpj: '11.222.333/0001-44', city: 'Curitiba, PR', status: 'active', notes: 'Entrega quinzenal', sent: 1, itemCode: 'MD03' },
+        { id: 4, name: 'ElectroComp', email: 'suporte@electrocomp.com', email2: '', email3: '', type: 'Eletrônico', mats: 'Capacitores, PCBs', phone: '(21) 2500-7700', cnpj: '33.444.555/0001-66', city: 'Rio de Janeiro, RJ', status: 'active', notes: 'Lead time 30 dias', sent: 0 },
+        { id: 5, name: 'TextilPro', email: 'comercial@textilpro.ind.br', email2: '', email3: '', type: 'Tecido', mats: 'Algodão, Poliéster', phone: '(11) 4000-2233', cnpj: '55.666.777/0001-88', city: 'Santo André, SP', status: 'inactive', notes: '', sent: 0 },
+      ];
+      S.templates = [
+        { id: 1, name: 'Cotação Padrão', cat: 'Cotação', subject: 'Solicitação de Cotação de Materiais', body: 'Olá, {nome}!\n\nGostaríamos de solicitar uma cotação para fornecimento de materiais.\nPor favor, envie sua proposta com preços, prazo e condições de pagamento.\n\nAtenciosamente,\nEquipe de Compras' },
+        { id: 2, name: 'Follow-up 1ª Semana', cat: 'Follow-up', subject: 'Re: Cotação de Materiais — Acompanhamento', body: 'Olá, {nome}!\n\nEntramos em contato para verificar se recebeu nossa solicitação de cotação.\n\nAguardamos seu retorno.\n\nAtenciosamente,\nEquipe de Compras' },
+        { id: 3, name: 'Apresentação Empresa', cat: 'Apresentação', subject: 'Oportunidade de Parceria', body: 'Prezados,\n\nEstamos em busca de fornecedores confiáveis de {tipo}.\n\nPodemos agendar uma apresentação?\n\nAtenciosamente,\nEquipe de Compras' },
+      ];
+      S.processes = [{
+        id: 1, subject: 'Cotação Q1 2025', body: 'Olá, {nome}! Cotação para Q1 2025.',
+        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: 'active',
+        autoDispatch: { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null },
+        recipients: [
+          { sid: 1, name: 'Aço Brasil Ltda', email: 'comercial@acobrasil.com', type: 'Metal', dispatches: [{ at: new Date(Date.now() - 86400000 * 5).toISOString(), note: 'Envio inicial' }, { at: new Date(Date.now() - 86400000 * 2).toISOString(), note: 'Reenvio' }], opened: true, replied: true },
+          { sid: 2, name: 'PlástiCor Indústria', email: 'vendas@plasticor.com.br', type: 'Plástico', dispatches: [{ at: new Date(Date.now() - 86400000 * 5).toISOString(), note: 'Envio inicial' }], opened: true, replied: false },
+          { sid: 3, name: 'MadeiraMix', email: 'contato@madeiramix.com', type: 'Madeira', dispatches: [{ at: new Date(Date.now() - 86400000 * 5).toISOString(), note: 'Envio inicial' }], opened: false, replied: false },
+        ]
+      }];
+      S.replies = [{
+        id: 1, procId: 1, sid: 1,
+        supplierName: 'Aço Brasil Ltda', supplierEmail: 'comercial@acobrasil.com',
+        procSubject: 'Cotação Q1 2025',
+        preview: 'Prezados, segue nossa proposta. Podemos atender com prazo de 15 dias úteis e condições especiais.',
+        repliedAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+        link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
+      }];
+      saveState();
+    }
+
+    // ══ API — JSONP (funciona sem CORS mesmo em file://) ══
+    // ══ API — Híbrida (JSONP para leitura, POST para escrita/grandes dados) ══
+    async function api(action, payload = {}) {
+      if (!CFG.apiUrl) return null;
+
+      // Alerta se a URL parecer de planilha em vez de script
+      if (CFG.apiUrl.includes('/spreadsheets/d/')) {
+        toast('Erro: Você colou a URL da Planilha no campo Web App!', 'var(--a1)');
+        return null;
+      }
+
+      // Definir ações que DEVEM usar POST
+      const usePost = ['salvar_processo', 'enviar_email', 'salvar_fornecedor'].includes(action) || JSON.stringify(payload).length > 2000;
+
+      if (usePost) {
+        try {
+          // Usamos 'text/plain' para evitar preflight/CORS complexo no GAS
+          const resp = await fetch(CFG.apiUrl, {
+            method: 'POST',
+            mode: 'no-cors', // Importante para Apps Script sem CORS headers
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action, payload: JSON.stringify(payload) })
+          });
+          // Nota: mode 'no-cors' não permite ler o corpo da resposta no fetch padrão,
+          // mas o ShootMail é resiliente a falhas silenciosas de escrita aqui.
+          // Para ações que precisam de retorno (como salvar_processo para pegar ID),
+          // vamos tentar um dardo no escuro ou assumir sucesso se não houver erro de rede.
+          // Se não tiver retorno (no-cors), usamos o ID que enviamos ou o mock
+          return { ok: true, id: payload.id || Date.now() };
+
+        } catch (e) {
+          console.error('Erro POST:', e);
+          return null;
+        }
+      }
+
+      // Fallback para JSONP (GET) — Ideal para leitura e compatibilidade file://
+      return new Promise(resolve => {
+        const cbName = '_smcb_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+        const params = new URLSearchParams({ action, payload: JSON.stringify(payload), callback: cbName });
+        const script = document.createElement('script');
+        let done = false;
+        const timer = setTimeout(() => {
+          if (done) return; done = true;
+          cleanup();
+          toast('Erro API: timeout — verifique se o Web App foi publicado corretamente', 'var(--a1)');
+          resolve(null);
+        }, 15000);
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+        window[cbName] = data => {
+          if (done) return; done = true;
+          cleanup();
+          if (!data || !data.ok) {
+            toast('Erro API: ' + (data && data.error || 'resposta inválida'), 'var(--a1)');
+            console.error('API Error:', data);
+            resolve(null);
+          }
+          else resolve(data.data);
+        };
+        script.onerror = () => {
+          if (done) return; done = true;
+          cleanup();
+          let msg = 'Erro API: não foi possível alcançar o servidor.';
+          if (!CFG.apiUrl.includes('/exec')) msg += ' A URL deve terminar em /exec.';
+          toast(msg, 'var(--a1)');
+          resolve(null);
+        };
+        const sep = CFG.apiUrl.indexOf('?') !== -1 ? '&' : '?';
+        script.src = CFG.apiUrl + sep + params.toString();
+        document.head.appendChild(script);
+      });
+    }
+
+    // ══ NAV ══
+    const _titles = { dash: 'Dashboard', suppliers: 'Fornecedores', templates: 'Modelos de Email', compose: 'Disparar Email', processes: 'Processos', replies: 'Respostas', settings: 'Configurações' };
+    function goTab(t) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+      document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+      document.getElementById('view-' + t).classList.add('on');
+      const btn = [...document.querySelectorAll('.nb')].find(b => b.getAttribute('onclick')?.includes("'" + t + "'"));
+      if (btn) btn.classList.add('on');
+      document.getElementById('topbar-title').textContent = _titles[t] || t;
+      closePanel();
+      updateTypeSelects(); // Sync dynamic types
+      if (t === 'dash') renderDash();
+      if (t === 'suppliers') loadSuppliers();
+      if (t === 'templates') renderTemplates();
+      if (t === 'compose') renderCompose();
+      if (t === 'processes') loadProcesses();
+      if (t === 'replies') loadReplies();
+      if (t === 'settings') renderSettings();
+    }
+
+    // ══ TOAST ══
+    function toast(msg, color) { const t = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg; t.style.borderColor = color || 'var(--a3)'; t.style.color = color || 'var(--a3)'; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 3500); }
+
+    // ══ MODAL ══
+    function openModal(id) { document.getElementById(id).classList.add('on'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('on'); if (id === 'modal-sup') { S.editSup = null; clearSupForm(); document.getElementById('modal-sup-title').textContent = '+ Novo Fornecedor'; } }
+
+    // ══ PANEL ══
+    function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
+    function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
+
+    // ══ TEMPLATES ══
+    function renderTemplates() {
+      const list = document.getElementById('tpl-list');
+      const empty = document.getElementById('tpl-list-empty');
+      list.innerHTML = '';
+      if (!S.templates.length) { empty.style.display = 'block'; updateTplSelect(); return; }
+      empty.style.display = 'none';
+      S.templates.forEach(t => {
+        const catCls = { Cotação: 'tg', 'Follow-up': 'to', Apresentação: 'tb', Confirmação: 'ty', Negociação: 'tr', Outro: 'tn' }[t.cat] || 'tn';
+        const div = document.createElement('div');
+        div.className = 'tpl-card fu';
+        div.id = 'tpl-c-' + t.id;
+        // Build inner HTML safely
+        div.innerHTML =
+          '<div class="tpl-name">' + esc(t.name) + (t.cat ? '<span class="tag ' + catCls + '" style="font-size:9px">' + esc(t.cat) + '</span>' : '') + '</div>' +
+          '<div class="tpl-subject">' + esc(t.subject) + '</div>' +
+          '<div class="tpl-preview">' + esc(t.body.slice(0, 80)) + '</div>' +
+          '<div class="tpl-actions"></div>';
+        // Events — div itself is .tpl-card, NOT a child
+        div.addEventListener('click', () => selectTplEdit(t.id));
+        const acts = div.querySelector('.tpl-actions');
+        const btnUse = document.createElement('button');
+        btnUse.className = 'btn btn-ghost btn-xs'; btnUse.textContent = '🔫 Usar';
+        btnUse.addEventListener('click', e => { e.stopPropagation(); useTemplate(t.id); });
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-ghost btn-xs'; btnDel.textContent = '🗑';
+        btnDel.addEventListener('click', e => { e.stopPropagation(); deleteTpl(t.id); });
+        acts.appendChild(btnUse);
+        acts.appendChild(btnDel);
+        list.appendChild(div);
+      });
+      updateTplSelect();
+    }
+
+    function newTemplate() {
+      _editTplId = null;
+      document.getElementById('tpl-editor-title').textContent = '✏️ Novo Modelo';
+      ['tpl-name', 'tpl-subject', 'tpl-body'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('tpl-cat').value = '';
+      const db = document.getElementById('tpl-del-btn'); if (db) db.style.display = 'none';
+      document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+      // Scroll editor into view and focus
+      const card = document.getElementById('tpl-editor-card');
+      if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); card.style.outline = '2px solid var(--a1)'; setTimeout(() => card.style.outline = '', 1000); }
+      setTimeout(() => { const n = document.getElementById('tpl-name'); if (n) n.focus(); }, 200);
+    }
+
+    function selectTplEdit(id) {
+      // coerce to same type for comparison
+      const t = S.templates.find(x => String(x.id) === String(id));
+      if (!t) return;
+      _editTplId = t.id;
+      document.getElementById('tpl-editor-title').textContent = '✏️ Editar: ' + t.name;
+      document.getElementById('tpl-name').value = t.name;
+      document.getElementById('tpl-cat').value = t.cat || '';
+      document.getElementById('tpl-subject').value = t.subject;
+      document.getElementById('tpl-body').value = t.body;
+      const db = document.getElementById('tpl-del-btn'); if (db) db.style.display = 'inline-flex';
+      document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('tpl-c-' + t.id)?.classList.add('selected');
+      const card = document.getElementById('tpl-editor-card');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function cancelTplEdit() { newTemplate(); }
+
+    function deleteTplEditing() {
+      if (_editTplId === null) { toast('Selecione um modelo na lista para excluí-lo', 'var(--a1)'); return; }
+      const tName = (S.templates.find(t => String(t.id) === String(_editTplId)) || {}).name || '';
+      if (!confirm('Excluir o modelo "' + tName + '"?\nEsta ação não pode ser desfeita.')) return;
+      S.templates = S.templates.filter(t => String(t.id) !== String(_editTplId));
+      saveState(); renderTemplates(); newTemplate(); updateBadges();
+      toast('Modelo excluído', 'var(--a1)');
+    }
+
+    function saveTpl() {
+      const name = document.getElementById('tpl-name').value.trim();
+      const subject = document.getElementById('tpl-subject').value.trim();
+      const body = document.getElementById('tpl-body').value.trim();
+      if (!name || !subject || !body) { toast('Preencha nome, assunto e corpo', 'var(--a1)'); return; }
+      const cat = document.getElementById('tpl-cat').value;
+      if (_editTplId !== null) {
+        const i = S.templates.findIndex(t => String(t.id) === String(_editTplId));
+        if (i !== -1) S.templates[i] = { ...S.templates[i], name, cat, subject, body };
+        toast('✅ Modelo atualizado!');
+      } else {
+        const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
+        S.templates.push({ id: newId, name, cat, subject, body });
+        toast('✅ Modelo salvo!');
+      }
+      saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
+    }
+
+    function deleteTpl(id) {
+      if (!confirm('Apagar este modelo?')) return;
+      S.templates = S.templates.filter(t => String(t.id) !== String(id));
+      if (String(_editTplId) === String(id)) newTemplate();
+      saveState(); renderTemplates(); updateBadges(); updateTplSelect(); toast('Modelo removido', 'var(--a1)');
+    }
+
+    function useTemplate(id) {
+      const t = S.templates.find(x => String(x.id) === String(id)); if (!t) return;
+      goTab('compose');
+      setTimeout(() => {
+        document.getElementById('c-subject').value = t.subject;
+        document.getElementById('c-body').value = t.body;
+        toast('📋 Modelo carregado!');
+      }, 150);
+    }
+
+    function updateTplSelect() {
+      const sel = document.getElementById('tpl-select'); if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Selecione um modelo...</option>';
+      S.templates.forEach(t => { const o = document.createElement('option'); o.value = String(t.id); o.textContent = t.name; if (String(t.id) === String(cur)) o.selected = true; sel.appendChild(o); });
+    }
+
+    function applyTemplate() {
+      const id = document.getElementById('tpl-select').value; if (!id) return;
+      const t = S.templates.find(x => String(x.id) === String(id)); if (!t) return;
+      document.getElementById('c-subject').value = t.subject;
+      document.getElementById('c-body').value = t.body;
+      toast('📋 Modelo carregado!');
+    }
+
+    function doSaveAsTemplate() {
+      const name = document.getElementById('stpl-name').value.trim(); if (!name) { toast('Digite um nome', 'var(--a1)'); return; }
+      const cat = document.getElementById('stpl-cat').value;
+      const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
+      S.templates.push({ id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' });
+      saveState(); updateBadges(); updateTplSelect();
+      closeModal('modal-save-tpl');
+      toast('✅ Modelo "' + name + '" salvo!');
+    }
+
+    function saveCurrentAsTemplate() {
+      const sub = document.getElementById('c-subject').value.trim();
+      const body = document.getElementById('c-body').value.trim();
+      if (!sub || !body) { toast('Preencha assunto e corpo primeiro', 'var(--a1)'); return; }
+      window._tplSaveSubject = sub;
+      window._tplSaveBody = body;
+      document.getElementById('stpl-name').value = '';
+      openModal('modal-save-tpl');
+    }
+
+    // ══ MATERIAL TYPES ══
+    function updateTypeSelects() {
+      // 1. Coleta tipos existentes nos fornecedores para garantir que nada se perca
+      const actualTypes = S.suppliers.map(s => s.type).filter(Boolean);
+      S.types = [...new Set([...S.types, ...actualTypes])];
+
+      const selects = ['s-type', 'sup-ft', 'p-ft'];
+      selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const curVal = el.value;
+        let html = (id === 's-type') ? '<option value="">Selecione...</option>' : '<option value="">Todos os tipos</option>';
+        S.types.forEach(t => {
+          html += `<option ${t === curVal ? 'selected' : ''}>${esc(t)}</option>`;
+        });
+        if (id === 's-type') html += '<option value="NEW_TYPE" style="font-weight:bold;color:var(--a1)">+ Adicionar Novo...</option>';
+        el.innerHTML = html;
+      });
+    }
+
+    function handleNewType(sel) {
+      if (sel.value === 'NEW_TYPE') {
+        const n = prompt('Digite o novo tipo de material:');
+        if (n && n.trim()) {
+          const t = n.trim();
+          if (!S.types.includes(t)) S.types.push(t);
+          updateTypeSelects();
+          sel.value = t;
+        } else {
+          sel.value = '';
+        }
+      }
+    }
+
+    // ══ SUPPLIERS ══
+    function clearSupForm() {
+      ['s-name', 's-email', 's-email2', 's-email3', 's-mats', 's-phone', 's-cnpj', 's-city', 's-notes', 's-code'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+      document.getElementById('s-type').value = '';
+      document.getElementById('s-status').value = 'active';
+    }
+
+    async function loadSuppliers(silent = false) {
+      if (CFG.apiUrl) {
+        const data = await api('listar_fornecedores', {});
+        if (data) {
+          S.suppliers = data.map(r => ({ id: r.ID, name: r.Nome, email: r.Email, email2: r.Email2 || '', email3: r.Email3 || '', type: r.Tipo_Material, mats: r.Materiais, phone: r.Telefone, cnpj: r.CNPJ, city: r.Cidade_UF, status: r.Status, notes: r.Observacoes, sent: r.Total_Enviados || 0, itemCode: r.Codigo_Item || '' }));
+          saveState();
+        }
+      }
+      renderSuppliers(); updateBadges();
+    }
+
+    async function saveSupplier() {
+      const name = document.getElementById('s-name').value.trim();
+      const email = document.getElementById('s-email').value.trim();
+      const type = document.getElementById('s-type').value;
+      const mats = document.getElementById('s-mats').value.trim();
+      const code = document.getElementById('s-code').value.trim();
+      if (!name || !email || !type || !mats) { toast('Preencha os campos obrigatórios', 'var(--a1)'); return; }
+      const d = { nome: name, email, email2: document.getElementById('s-email2').value.trim(), email3: document.getElementById('s-email3').value.trim(), tipo: type, materiais: mats, telefone: document.getElementById('s-phone').value.trim(), cnpj: document.getElementById('s-cnpj').value.trim(), cidade: document.getElementById('s-city').value.trim(), status: document.getElementById('s-status').value, notas: document.getElementById('s-notes').value.trim(), codigo_item: code };
+      if (S.editSup !== null) d.id = S.editSup;
+      if (CFG.apiUrl) { const r = await api('salvar_fornecedor', { data: d }); if (r) toast(S.editSup ? 'Fornecedor atualizado!' : 'Fornecedor salvo no Sheets!'); }
+      if (S.editSup !== null) { const i = S.suppliers.findIndex(s => String(s.id) === String(S.editSup)); if (i !== -1) S.suppliers[i] = { ...S.suppliers[i], name, email, email2: d.email2, email3: d.email3, type, mats, phone: d.telefone, cnpj: d.cnpj, city: d.cidade, status: d.status, notes: d.notas, itemCode: d.codigo_item }; }
+      else { const nid = S.suppliers.length ? Math.max(...S.suppliers.map(s => Number(s.id) || 0)) + 1 : 1; S.suppliers.push({ id: nid, name, email, email2: d.email2, email3: d.email3, type, mats, phone: d.telefone, cnpj: d.cnpj, city: d.cidade, status: d.status, notes: d.notas, sent: 0, itemCode: d.codigo_item }); }
+      if (!CFG.apiUrl) toast(S.editSup ? 'Fornecedor atualizado!' : 'Fornecedor adicionado!');
+      saveState(); closeModal('modal-sup'); renderSuppliers(); updateBadges(); renderDash();
+    }
+
+    function editSup(id) {
+      const s = S.suppliers.find(x => String(x.id) === String(id)); if (!s) return;
+      S.editSup = s.id;
+      document.getElementById('s-name').value = s.name;
+      document.getElementById('s-email').value = s.email;
+      document.getElementById('s-email2').value = s.email2 || '';
+      document.getElementById('s-email3').value = s.email3 || '';
+      document.getElementById('s-type').value = s.type;
+      document.getElementById('s-mats').value = s.mats;
+      document.getElementById('s-phone').value = s.phone || '';
+      document.getElementById('s-cnpj').value = s.cnpj || '';
+      document.getElementById('s-city').value = s.city || '';
+      document.getElementById('s-status').value = s.status;
+      document.getElementById('s-notes').value = s.notes || '';
+      document.getElementById('s-code').value = s.itemCode || '';
+      document.getElementById('modal-sup-title').textContent = '✏️ Editar Fornecedor';
+      openModal('modal-sup');
+    }
+
+    function toggleSupStatus(id) {
+      const i = S.suppliers.findIndex(s => String(s.id) === String(id)); if (i === -1) return;
+      S.suppliers[i].status = S.suppliers[i].status === 'active' ? 'inactive' : 'active';
+      saveState(); renderSuppliers(); updateBadges();
+      toast(S.suppliers[i].status === 'active' ? '✅ Ativado' : '⏸ Desativado');
+      if (CFG.apiUrl) api('toggle_status_fornecedor', { id });
+    }
+
+    // FIX: was missing async keyword
+    async function delSup(id) {
+      const s = S.suppliers.find(x => String(x.id) === String(id)); if (!s) return;
+      if (!confirm('Remover "' + s.name + '"?')) return;
+      S.suppliers = S.suppliers.filter(x => String(x.id) !== String(id));
+      saveState(); renderSuppliers(); updateBadges(); toast('Fornecedor removido', 'var(--a1)');
+      if (CFG.apiUrl) await api('deletar_fornecedor', { id });
+    }
+
+    function renderSuppliers() {
+      const q = (document.getElementById('sup-q').value || '').toLowerCase();
+      const qc = (document.getElementById('sup-qc').value || '').toLowerCase();
+      const ft = document.getElementById('sup-ft').value;
+      const fm = document.getElementById('sup-fm').value;
+      const allM = [...new Set(S.suppliers.flatMap(s => (s.mats || '').split(',').map(m => m.trim()))).values()].filter(Boolean);
+      const msel = document.getElementById('sup-fm'); const curM = msel.value;
+      msel.innerHTML = '<option value="">Todos os materiais</option>';
+      allM.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; if (m === curM) o.selected = true; msel.appendChild(o); });
+      const filtered = S.suppliers.filter(s => {
+        const mq = !q || s.name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q) || s.mats?.toLowerCase().includes(q);
+        const mqc = !qc || (s.itemCode || '').toLowerCase().includes(qc);
+        const mt = !ft || s.type === ft;
+        const mm = !fm || (s.mats || '').includes(fm);
+        return mq && mqc && mt && mm;
+      });
+      const tbody = document.getElementById('sup-tbody');
+      const empty = document.getElementById('sup-empty');
+      if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      const TC = { Metal: 'tb', Plástico: 'to', Madeira: 'ty', Tecido: 'tr', Eletrônico: 'tg', Químico: 'tn', Embalagem: 'tn', Outro: 'tn' };
+      tbody.innerHTML = '';
+      filtered.forEach(s => {
+        const emails = [s.email, s.email2, s.email3].filter(Boolean);
+        const isActive = s.status === 'active';
+        const tr = document.createElement('tr');
+        tr.className = 'fu';
+        tr.innerHTML =
+          '<td><input type="checkbox" class="sup-cb" data-id="' + s.id + '" onchange="updateSupBulkBar()"></td>' +
+          '<td><div style="font-weight:500">' + esc(s.name) + '</div><div style="font-size:10.5px;color:var(--t3)">' + esc(s.city || '—') + '</div></td>' +
+          '<td>' + emails.map((e, i) => '<div style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:' + (i === 0 ? 'var(--a5)' : 'var(--t2)') + '">' + esc(e) + '</div>').join('') + '</td>' +
+          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--t2)"><div>' + esc(s.phone || '—') + '</div><div style="color:var(--a4);font-weight:600;margin-top:2px">' + esc(s.itemCode || '—') + '</div></td>' +
+          '<td><span class="tag ' + (TC[s.type] || 'tn') + '">' + esc(s.type) + '</span></td>' +
+          '<td>' + (s.mats || '').split(',').map(m => m.trim()).slice(0, 3).map(m => '<span class="tag tn" style="font-size:9.5px;padding:1px 6px">' + esc(m) + '</span>').join(' ') + '</td>' +
+          '<td><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:5px;border:1px solid var(--bd)">📨 ' + (s.sent || 0) + 'x</span></td>' +
+          '<td><span class="tag ' + (isActive ? 'tg' : 'tn') + '">' + (isActive ? '● Ativo' : '○ Inativo') + '</span></td>' +
+          '<td><div style="display:flex;gap:4px" id="sa-' + s.id + '"></div></td>';
+        tbody.appendChild(tr);
+        const acts = document.getElementById('sa-' + s.id);
+        const be = document.createElement('button'); be.className = 'btn btn-ghost btn-xs btn-icon-text'; be.title = 'Editar'; be.textContent = '✏️ Editar';
+        const bt = document.createElement('button'); bt.className = 'btn btn-ghost btn-xs'; bt.title = isActive ? 'Desativar' : 'Ativar'; bt.textContent = isActive ? '⏸' : '▶';
+        const bd = document.createElement('button'); bd.className = 'btn btn-ghost btn-xs btn-icon-text'; bd.style.color = 'var(--a1)'; bd.title = 'Remover'; bd.textContent = '🗑️ Remover';
+        be.addEventListener('click', function (e) { e.stopPropagation(); editSup(s.id); });
+        bt.addEventListener('click', function (e) { e.stopPropagation(); toggleSupStatus(s.id); });
+        bd.addEventListener('click', function (e) { e.stopPropagation(); delSup(s.id); });
+        acts.appendChild(be); acts.appendChild(bt); acts.appendChild(bd);
+      });
+    }
+
+    function exportSupCSV() {
+      const rows = [['ID', 'Nome', 'Email', 'Email2', 'Email3', 'Tipo', 'Materiais', 'Telefone', 'CNPJ', 'Cidade', 'Status', 'Enviados', 'Código']];
+      S.suppliers.forEach(s => rows.push([s.id, s.name, s.email, s.email2 || '', s.email3 || '', s.type, s.mats, s.phone || '', s.cnpj || '', s.city || '', s.status, s.sent || 0, s.itemCode || '']));
+      dlCSV(rows, 'fornecedores.csv'); toast('⬇ CSV exportado!');
+    }
+
+    // ── Import CSV ──
+    let _importRows = [];
+    function openImportModal() { _importRows = []; document.getElementById('import-preview').style.display = 'none'; document.getElementById('import-confirm-btn').style.display = 'none'; document.getElementById('import-list').innerHTML = ''; openModal('modal-import'); }
+    function readImportCSV(inp) { if (inp.files[0]) readImportFile(inp.files[0]); }
+    function readImportFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return;
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+        _importRows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+          const row = {}; headers.forEach((h, j) => row[h] = cols[j] || '');
+          const obj = { name: row['nome'] || row['name'] || '', email: row['email'] || '', email2: row['email2'] || '', email3: row['email3'] || '', type: row['tipo_material'] || row['tipo'] || 'Outro', mats: row['materiais'] || '', phone: row['telefone'] || '', cnpj: row['cnpj'] || '', city: row['cidade_uf'] || row['cidade'] || '', notes: row['observacoes'] || '', itemCode: row['código'] || row['codigo'] || row['itemcode'] || '', status: 'active' };
+          if (obj.name && obj.email) _importRows.push(obj);
+        }
+        document.getElementById('import-count').textContent = _importRows.length + ' fornecedor(es) detectado(s)';
+        document.getElementById('import-list').innerHTML = _importRows.map(r => '<div style="padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px"><strong>' + esc(r.name) + '</strong> <span style="color:var(--t2)">&lt;' + esc(r.email) + '&gt;</span></div>').join('');
+        document.getElementById('import-preview').style.display = 'block';
+        document.getElementById('import-confirm-btn').style.display = _importRows.length ? 'inline-flex' : 'none';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+    async function confirmImport() {
+      let added = 0;
+      for (const r of _importRows) { const nid = S.suppliers.length ? Math.max(...S.suppliers.map(s => Number(s.id) || 0)) + 1 : 1; S.suppliers.push({ id: nid, ...r, sent: 0 }); added++; if (CFG.apiUrl) await api('salvar_fornecedor', { data: { nome: r.name, email: r.email, email2: r.email2, email3: r.email3, tipo: r.type, materiais: r.mats, telefone: r.phone, cnpj: r.cnpj, cidade: r.city, status: r.status, notas: r.notes, codigo_item: r.itemCode } }); }
+      saveState(); closeModal('modal-import'); renderSuppliers(); updateBadges(); renderDash(); toast('✅ ' + added + ' fornecedor(es) importado(s)!');
+    }
+
+    // ══ COMPOSE ══
+    function renderCompose() {
+      const active = S.suppliers.filter(s => s.status === 'active');
+      const types = [...new Set(active.map(s => s.type))];
+      document.getElementById('c-type-chips').innerHTML = types.map(t => '<div class="chip" onclick="toggleChip(this);applyChipF()">' + esc(t) + '</div>').join('');
+      const mats = [...new Set(active.flatMap(s => (s.mats || '').split(',').map(m => m.trim())))].filter(Boolean).slice(0, 14);
+      document.getElementById('c-mat-chips').innerHTML = mats.map(m => '<div class="chip" onclick="toggleChip(this);applyChipF()">' + esc(m) + '</div>').join('');
+      document.getElementById('c-rec-list').innerHTML = active.map(s => '<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:6px;cursor:pointer;font-size:13px;" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'none\'"><input type="checkbox" class="rec-cb" data-id="' + s.id + '" onchange="updSel()"><span style="flex:1">' + esc(s.name) + '</span><span style="font-size:10px;color:var(--t3)">' + esc(s.type) + '</span></label>').join('') || '<div style="color:var(--t3);font-size:13px">Nenhum fornecedor ativo.</div>';
+      updateTplSelect(); updSel();
+
+      const b1 = document.getElementById('btn-do-send');
+      const b2 = document.getElementById('btn-confirm-send');
+      if (b1) { b1.disabled = S.isSending; b1.textContent = S.isSending ? '🕒 ENVIANDO...' : '🔫 DISPARAR'; }
+      if (b2) { b2.disabled = S.isSending; b2.textContent = S.isSending ? '🕒 ENVIANDO...' : '🔫 Confirmar Disparo'; }
+    }
+    function toggleChip(el) { el.classList.toggle('on'); }
+    function applyChipF() {
+      const st = [...document.querySelectorAll('#c-type-chips .chip.on')].map(c => c.textContent.trim());
+      const sm = [...document.querySelectorAll('#c-mat-chips .chip.on')].map(c => c.textContent.trim());
+      const q = (document.getElementById('c-rec-q')?.value || '').toLowerCase();
+      const qc = (document.getElementById('c-rec-qc')?.value || '').toLowerCase();
+
+      document.querySelectorAll('.rec-cb').forEach(cb => {
+        const s = S.suppliers.find(x => String(x.id) === cb.dataset.id);
+        if (!s) return;
+        const mq = !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
+        const mqc = !qc || (s.itemCode || '').toLowerCase().includes(qc);
+        const mt = !st.length || st.includes(s.type);
+        const mm = !sm.length || sm.some(m => (s.mats || '').includes(m));
+
+        // Se houver filtros de chips, marcamos. Se houver filtros de texto, mostramos/escondemos a linha
+        const isVisible = mq && mqc;
+        cb.closest('label').style.display = isVisible ? 'flex' : 'none';
+
+        if (st.length || sm.length) {
+          cb.checked = mt && mm && isVisible;
+        }
+      });
+      updSel();
+    }
+    function updSel() { const c = document.querySelectorAll('.rec-cb:checked').length; const e = document.getElementById('c-sel-count'); if (e) e.textContent = c + ' selecionado' + (c !== 1 ? 's' : ''); }
+    function getRecips() { const ids = [...document.querySelectorAll('.rec-cb:checked')].map(c => c.dataset.id); return S.suppliers.filter(s => ids.includes(String(s.id))); }
+    function previewCompose() { const sub = document.getElementById('c-subject').value; const body = document.getElementById('c-body').value; const r = getRecips(); document.getElementById('pv-subject').textContent = sub || '(sem assunto)'; document.getElementById('pv-body').textContent = body || '(sem corpo)'; document.getElementById('pv-count').textContent = r.length; openModal('modal-preview'); }
+    // ── Attachments Logic ──
+    let _selectedFiles = [];
+    function updAttList() {
+      const inp = document.getElementById('c-att-input');
+      if (inp.files.length) {
+        for (let i = 0; i < inp.files.length; i++) {
+          const f = inp.files[i];
+          if (!_selectedFiles.some(x => x.name === f.name && x.size === f.size)) _selectedFiles.push(f);
+        }
+      }
+      inp.value = ''; // clear input to allow re-selecting same name
+      const el = document.getElementById('c-att-list');
+      el.innerHTML = '';
+      _selectedFiles.forEach((f, idx) => {
+        const div = document.createElement('div');
+        div.className = 'tag tn';
+        div.style.padding = '4px 8px';
+        div.innerHTML = '📎 ' + esc(f.name) + ' <span style="cursor:pointer;margin-left:5px;opacity:.6">×</span>';
+        div.querySelector('span').onclick = () => { _selectedFiles.splice(idx, 1); updAttList(); };
+        el.appendChild(div);
+      });
+    }
+
+    function _fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    async function doSend() {
+      const subject = document.getElementById('c-subject').value.trim();
+      const body = document.getElementById('c-body').value.trim();
+      const recips = getRecips();
+      if (S.isSending) return;
+      if (!subject) { toast('Digite um assunto!', 'var(--a1)'); return; }
+      if (!body) { toast('Digite o corpo do email!', 'var(--a1)'); return; }
+      if (!recips.length) { toast('Selecione ao menos um fornecedor!', 'var(--a1)'); return; }
+
+      S.isSending = true;
+      renderCompose(); // Update button state
+
+      const pid = Date.now();
+      const now = new Date().toISOString();
+
+      // Se estiver conectado à API, salva o processo lá para garantir que os contadores funcionem
+      if (CFG.apiUrl) {
+        await api('salvar_processo', {
+          id: pid,
+          data: {
+            id: pid,
+            assunto: subject,
+            corpo: body,
+            status: 'active',
+            total_destinatarios: recips.length,
+            destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type })) // PASSANDO EM LOTE
+          }
+        });
+      }
+
+      // Read auto-dispatch settings
+      const autoEnabled = document.getElementById('c-auto-enable')?.checked;
+      const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
+      const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
+      const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
+      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
+      const proc = { id: pid, subject, body, createdAt: now, status: 'active', autoDispatch, recipients: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, email2: s.email2 || '', email3: s.email3 || '', type: s.type, dispatches: [{ at: now, note: 'Envio inicial' }], opened: false, replied: false })) };
+      S.processes.push(proc);
+      recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
+      saveState(); updateBadges(); closeModal('modal-preview');
+
+      const atts = [];
+      if (_selectedFiles.length) {
+        toast('📎 Processando anexos...');
+        for (const f of _selectedFiles) {
+          try {
+            const data = await _fileToBase64(f);
+            atts.push({ name: f.name, type: f.type, data });
+          } catch (e) {
+            console.error('Erro no anexo:', f.name, e);
+          }
+        }
+      }
+
+      toast('🚀 Enviando emails...', 'var(--a5)');
+      if (CFG.apiUrl) {
+        try {
+          for (const s of recips) {
+            const b = body.replace(/{nome}/g, s.name).replace(/{empresa}/g, s.name).replace(/{tipo}/g, s.type);
+            await api('enviar_email', {
+              data: {
+                para: s.email, para2: s.email2 || '', para3: s.email3 || '',
+                assunto: subject, corpo: b, nome_remetente: CFG.gmailName || 'ShootMail',
+                processo_id: pid, fornecedor_id: s.id, nome_fornecedor: s.name,
+                tipo_material: s.type, nota: 'Envio inicial',
+                anexos: atts
+              }
+            });
+          }
+          _selectedFiles = []; updAttList(); // Limpa anexos após envio
+          toast('✅ Disparado para ' + recips.length + ' fornecedor(es)!' + (autoEnabled ? ' + auto-reenvio ativo 🔁' : ''));
+          if (autoEnabled) setTimeout(() => startAutoDispatch(pid), 100);
+        } catch (e) {
+          console.error('Erro no disparo:', e);
+          toast('Erro durante o envio. Verifique o console.', 'var(--a1)');
+        } finally {
+          S.isSending = false;
+          renderCompose();
+        }
+      }
+      goTab('processes');
+    }
+
+    // ══ PROCESSES ══
+    async function loadProcesses(silent = false) {
+      if (CFG.apiUrl) {
+        const data = await api('listar_processos', { incluir_destinatarios: true });
+        if (data) {
+          const remoteList = data.map(p => {
+            const ex = S.processes.find(x => String(x.id) === String(p.ID));
+            const remoteRecs = (p.destinatarios || []).map(d => ({
+              sid: d.Fornecedor_ID, name: d.Nome_Fornecedor, email: d.Email_Fornecedor, type: d.Tipo_Material,
+              opened: d.Abriu === 'TRUE' || d.Abriu === true, openedAt: d.Abriu_Em, replied: d.Respondeu === 'TRUE' || d.Respondeu === true,
+              dispatches: Array.from({ length: Number(d.Total_Disparos_Individual) || 1 }, (_, i) => ({ at: p.Criado_Em, note: i === 0 ? 'Envio inicial' : 'Reenvio' }))
+            }));
+
+            return {
+              id: p.ID, subject: p.Assunto, body: p.Corpo_Email || p.Corpo, createdAt: p.Criado_Em, status: p.Status, Observacoes: p.Observacoes || p.obs || '',
+              totalDest: p.Total_Destinatarios, totalDisp: p.Total_Disparos, totalAbr: p.Total_Abriram || p.Total_Aberturas, totalResp: p.Total_Responderam || p.Total_Respostas,
+              recipients: remoteRecs.length > 0 ? remoteRecs : (ex?.recipients || []),
+              autoDispatch: ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null }
+            };
+          });
+
+          // Merge: Keep local processes that are NOT in remoteList yet (e.g. just sent, or sync delay)
+          // BUT: If it's missing from remote and it's old (>10min), assume it was deleted on remote.
+          const merged = [...remoteList];
+          const tenMin = 10 * 60 * 1000;
+          S.processes.forEach(lp => {
+            if (!merged.some(rp => String(rp.id) === String(lp.id))) {
+              const age = Date.now() - new Date(lp.createdAt).getTime();
+              const isRecentMatch = merged.some(rp => rp.subject === lp.subject && Math.abs(new Date(rp.createdAt) - new Date(lp.createdAt)) < 60000);
+              // Only keep if it's very recent or matches a recent remote item (sync hedge)
+              if (!isRecentMatch && age < tenMin) merged.push(lp);
+            }
+          });
+
+          S.processes = merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          saveState();
+          restartAutomations();
+        }
+      }
+      renderProcesses(); updateBadges();
+    }
+
+    function restartAutomations() {
+      S.processes.forEach(p => { if (p.autoDispatch?.enabled) startAutoDispatch(p.id, true); });
+    }
+
+    function renderProcesses() {
+      const q = (document.getElementById('proc-q').value || '').toLowerCase();
+      const fs = document.getElementById('proc-fs').value;
+      const ft = document.getElementById('proc-ft').value;
+      let procs = [...S.processes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      procs = procs.filter(p => { const mq = !q || p.subject?.toLowerCase().includes(q) || p.recipients?.some(r => r.name?.toLowerCase().includes(q)); const ms = !fs || (fs === 'replied' ? p.recipients?.some(r => r.replied) : p.status === fs); const mt = !ft || p.recipients?.some(r => r.type === ft); return mq && ms && mt; });
+      const el = document.getElementById('proc-list'); const empty = document.getElementById('proc-empty');
+      if (!procs.length) { el.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none'; el.innerHTML = '';
+      procs.forEach(p => {
+        const replied = p.recipients?.filter(r => r.replied).length || Number(p.totalResp) || 0;
+        const opened = p.recipients?.filter(r => r.opened).length || Number(p.totalAbr) || 0;
+        const totalD = p.recipients?.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(p.totalDisp) || 0;
+        const totalN = p.recipients?.length || Number(p.totalDest) || 0;
+        const types = [...new Set((p.recipients || []).map(r => r.type))].filter(Boolean);
+        const sc = { active: 'tb', replied: 'tg', pending: 'ty', done: 'tn' }[p.status] || 'tn';
+        const div = document.createElement('div');
+        div.className = 'proc-card fu';
+        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">🔁 ' + totalD + 'x</span>' + types.slice(0, 2).map(t => '<span class="tag ' + tcls(t) + '" style="font-size:9.5px">' + esc(t) + '</span>').join('') + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
+        div.addEventListener('click', () => openProcPanel(p.id));
+        el.appendChild(div);
+      });
+    }
+
+    function renderPanel(proc) {
+      const pid = String(proc.id);
+      document.getElementById('dp-title').textContent = proc.subject;
+      const replies = S.replies.filter(r => String(r.procId) === pid);
+      const recs = proc.recipients || [];
+      const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(proc.totalDisp) || 0;
+      const opened = recs.filter(r => r.opened).length || Number(proc.totalAbr) || 0;
+      const replied = recs.filter(r => r.replied).length || Number(proc.totalResp) || 0;
+      const totalN = recs.length || Number(proc.totalDest) || 0;
+      const types = [...new Set(recs.map(r => r.type))].filter(Boolean);
+      document.getElementById('dp-tags').innerHTML = types.map(t => '<span class="tag ' + tcls(t) + '">' + esc(t) + '</span>').join('') + '<span class="tag tn">' + totalN + ' dest.</span><span class="tag ' + (proc.status === 'replied' ? 'tg' : proc.status === 'pending' ? 'ty' : 'tb') + '">' + statusLbl(proc.status) + '</span>';
+      let h = '<div><div class="dp-sec-title">Estatísticas</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">' + sbox('Disparos', totalD, 'var(--a2)') + sbox('Abriram', opened + '/' + totalN, 'var(--a4)') + sbox('Responderam', replied + '/' + totalN, 'var(--a3)') + '</div></div>';
+      h += '<div><div class="dp-sec-title">Destinatários</div>';
+      recs.forEach(r => {
+        const last = r.dispatches?.[r.dispatches.length - 1];
+        const openInfo = r.opened ? '<span style="color:var(--a4);font-weight:500">Abriu em: ' + fmtDT(r.openedAt || r.Abriu_Em) + '</span>' : '<span style="color:var(--t3)">Ainda não abriu</span>';
+        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (r.dispatches?.length || 1) + 'x enviado · último: ' + (last ? fmtDT(last.at) : '—') + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
+      });
+      h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
+      let allD = []; recs.forEach(r => (r.dispatches || [{ at: proc.createdAt, note: 'Envio inicial' }]).forEach(d => allD.push({ ...d, rn: r.name }))); allD.sort((a, b) => new Date(a.at) - new Date(b.at));
+      allD.forEach((d, i) => { h += '<div class="tl-item"><div class="tl-num">' + (i + 1) + '</div><div style="flex:1"><div class="tl-date">' + fmtDT(d.at) + '</div><div class="tl-note">' + esc(d.note || 'Disparo') + ' · <span style="color:var(--t3)">' + esc(d.rn) + '</span></div></div></div>'; });
+      h += '</div></div>';
+      // Replies — store in map with string keys
+      window._repMap = {};
+      replies.forEach(r => { window._repMap[String(r.id)] = r; });
+      h += '<div><div class="dp-sec-title">Respostas (' + replies.length + ')</div>';
+      if (!replies.length) h += '<div style="color:var(--t3);font-size:12.5px;padding:8px 0">Nenhuma resposta ainda.</div>';
+      replies.forEach(r => { const at = (r.attachments || '').split(';').map(a => a.trim()).filter(Boolean).map(a => '<span class="attach-chip">📎 ' + esc(a) + '</span>').join(' '); h += '<div class="reply-item" style="cursor:pointer" data-rid="' + String(r.id) + '"><div style="display:flex;align-items:center;gap:9px;margin-bottom:7px"><span style="font-weight:600;font-size:13px;flex:1">' + esc(r.supplierName) + '</span><span style="font-size:9.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + fmtDT(r.repliedAt) + '</span><span style="font-size:10px;color:var(--a5)">clique para ver ↗</span></div><div style="font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:9px">' + esc((r.preview || '').slice(0, 120)) + '</div>' + (at ? '<div style="display:flex;flex-wrap:wrap;gap:3px">' + at + '</div>' : '') + '</div>'; });
+      h += '</div><div><div class="dp-sec-title">Comentários / Anotações</div>';
+      h += '<textarea id="dp-obs" class="finput" style="width:100%;min-height:80px;resize:vertical;padding:10px;font-size:13px;background:var(--bg3);border:1px solid var(--bd)" placeholder="Anotações internas sobre este processo...">' + esc(proc.Observacoes || proc.obs || '') + '</textarea>';
+      h += '<div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn btn-sky btn-sm" onclick="saveProcObs(\'' + pid + '\')">💾 Salvar Anotações</button></div>';
+      h += '</div><div><div class="dp-sec-title">Corpo do Email</div><div style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:13px;font-size:12.5px;color:var(--t2);white-space:pre-wrap;line-height:1.6">' + esc(proc.body) + '</div></div>';
+      document.getElementById('dp-body').innerHTML = h;
+      // Attach events AFTER innerHTML
+      document.querySelectorAll('[data-rsnd]').forEach(btn => { const [ppid, sid] = btn.dataset.rsnd.split('|'); btn.addEventListener('click', () => resendTo(ppid, sid)); });
+      replies.forEach(r => { const div = document.querySelector('[data-rid="' + String(r.id) + '"]'); if (div) div.addEventListener('click', () => openReplyViewer(String(r.id))); });
+      // Footer buttons
+      const foot = document.getElementById('dp-foot'); foot.innerHTML = '';
+      // Auto-dispatch status bar
+      // Auto-dispatch: garantir objeto existe sempre (mesmo em demos antigos)
+      if (!proc.autoDispatch) proc.autoDispatch = { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null };
+      const ad = proc.autoDispatch;
+      {
+        const adBar = document.createElement('div');
+        adBar.style.cssText = 'width:100%;padding:8px 10px;border-radius:7px;font-size:11.5px;display:flex;align-items:center;gap:10px;margin-bottom:4px;' + (ad.enabled ? 'background:rgba(77,255,195,.07);border:1px solid rgba(77,255,195,.2);' : 'background:rgba(255,255,255,.04);border:1px solid var(--bd);');
+        adBar.innerHTML = '<span style="flex:1">' + (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados' + (ad.lastSent ? ' · último: ' + fmtDT(ad.lastSent) : '') + '</span>';
+        const togBtn = document.createElement('button');
+        togBtn.className = 'btn btn-xs ' + (ad.enabled ? 'btn-ghost' : 'btn-green');
+        togBtn.style.cssText = 'font-size:11px;padding:3px 10px;' + (ad.enabled ? 'color:var(--a1)' : 'color:var(--a3);border-color:var(--a3)');
+        togBtn.textContent = ad.enabled ? '⏹ Parar' : '▶ Ativar';
+        togBtn.addEventListener('click', () => toggleAutoDispatchProc(proc.id));
+        adBar.appendChild(togBtn);
+        foot.appendChild(adBar);
+      }
+      [[' btn-ghost', '🔁 Todos', () => resendAll(pid)], ['btn-orange', '🔁 Sem Resposta', () => resendNR(pid)], ['btn-blue', '📥 CSV', () => dlProcCSV(pid)], ['btn-ghost', '📄 TXT', () => dlProcTxt(pid)], ['btn-amber', '🖨 PDF', () => dlProcPDF(pid)]].forEach(([cls, label, fn]) => { const b = document.createElement('button'); b.className = 'btn ' + cls.trim() + ' btn-sm'; b.textContent = label; b.addEventListener('click', fn); foot.appendChild(b); });
+    }
+    function sbox(label, val, color) { return '<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:11px;text-align:center"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:22px;font-weight:800;color:' + color + '">' + val + '</div><div style="font-size:10px;color:var(--t3);margin-top:2px">' + label + '</div></div>'; }
+
+    // ══ RESEND ══
+    async function resendTo(procId, sid) { const proc = S.processes.find(p => String(p.id) === String(procId)); const rec = proc?.recipients?.find(r => String(r.sid) === String(sid)); if (!rec) return; const now = new Date().toISOString(); rec.dispatches = rec.dispatches || []; rec.dispatches.push({ at: now, note: 'Reenvio manual' }); saveState(); renderPanel(proc); toast('🔁 Reenviado para ' + rec.name); if (CFG.apiUrl) { const b = proc.body.replace(/{nome}/g, rec.name); await api('enviar_email', { data: { para: rec.email, assunto: proc.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: sid, nome_fornecedor: rec.name, tipo_material: rec.type, nota: 'Reenvio manual' } }); } }
+    async function resendAll(procId) { const proc = S.processes.find(p => String(p.id) === String(procId)); if (!proc) return; const now = new Date().toISOString(); proc.recipients?.forEach(r => { r.dispatches = r.dispatches || []; r.dispatches.push({ at: now, note: 'Reenvio em massa' }); }); saveState(); renderPanel(proc); toast('🔁 Reenviado para ' + (proc.recipients?.length || 0)); if (CFG.apiUrl) for (const r of (proc.recipients || [])) { const b = proc.body.replace(/{nome}/g, r.name); await api('enviar_email', { data: { para: r.email, assunto: proc.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: proc.id, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Reenvio em massa' } }); } }
+    async function resendNR(procId) { const proc = S.processes.find(p => String(p.id) === String(procId)); if (!proc) return; const nr = proc.recipients?.filter(r => !r.replied) || []; const now = new Date().toISOString(); nr.forEach(r => { r.dispatches = r.dispatches || []; r.dispatches.push({ at: now, note: 'Reenvio — sem resposta' }); }); saveState(); renderPanel(proc); toast('🔁 Reenviado para ' + nr.length + ' sem resposta'); if (CFG.apiUrl) for (const r of nr) { const b = proc.body.replace(/{nome}/g, r.name); await api('enviar_email', { data: { para: r.email, assunto: proc.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: proc.id, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Reenvio — não respondeu' } }); } }
+
+    // ══ REPLIES ══
+    async function loadReplies(silent = false) {
+      const statusEl = document.getElementById('rep-sync-status');
+      if (statusEl) { statusEl.textContent = '🕒 Verificando Gmail...'; statusEl.style.color = 'var(--a4)'; }
+      if (CFG.apiUrl) {
+        const data = await api('todas_respostas', {});
+        if (data) {
+          S.replies = data.map(r => ({ id: r.ID, procId: r.Processo_ID, sid: r.Fornecedor_ID, supplierName: r.Nome_Fornecedor, supplierEmail: r.Email_Fornecedor, procSubject: r.Processo_Assunto, preview: r.Preview, repliedAt: r.Respondido_Em, link: r.Link_Email, attachments: r.Anexos || '' }));
+          saveState();
+        }
+      }
+      if (statusEl) { statusEl.textContent = '✓ Atualizado'; statusEl.style.color = 'var(--t3)'; setTimeout(() => { if (statusEl.textContent === '✓ Atualizado') statusEl.textContent = ''; }, 3000); }
+      renderReplies();
+    }
+
+    function renderReplies() {
+      const q = (document.getElementById('rep-q').value || '').toLowerCase();
+      const fp = document.getElementById('rep-fp').value;
+      const rfp = document.getElementById('rep-fp'); const curFP = rfp.value;
+      rfp.innerHTML = '<option value="">Todos os processos</option>';
+      S.processes.forEach(p => { const o = document.createElement('option'); o.value = String(p.id); o.textContent = (p.subject || '').slice(0, 50); if (o.value === curFP) o.selected = true; rfp.appendChild(o); });
+      let reps = S.replies
+        .filter(r => {
+          const mq = !q || (r.supplierName || '').toLowerCase().includes(q) || (r.preview || '').toLowerCase().includes(q);
+          const mp = !fp || String(r.procId) === String(fp);
+          return mq && mp;
+        })
+        .sort((a, b) => new Date(b.repliedAt || 0) - new Date(a.repliedAt || 0));
+      document.getElementById('rep-summary').textContent = reps.length + ' resposta(s)';
+      const tbody = document.getElementById('rep-tbody'); const empty = document.getElementById('rep-empty');
+      if (!reps.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      window._repMap = window._repMap || {};
+      reps.forEach(r => { window._repMap[String(r.id)] = r; });
+      tbody.innerHTML = '';
+      reps.forEach(r => {
+        const at = (r.attachments || '').split(';').map(a => a.trim()).filter(Boolean).map(a => '<span class="tag tn" style="font-size:9.5px">📎 ' + esc(a) + '</span>').join(' ') || '—';
+        const proc = S.processes.find(p => String(p.id) === String(r.procId));
+        const tr = document.createElement('tr'); tr.className = 'fu'; tr.style.cursor = 'pointer';
+        tr.innerHTML = '<td><div style="font-weight:500">' + esc(r.supplierName) + '</div><div style="font-size:10.5px;color:var(--t3);font-family:\'JetBrains Mono\',monospace">' + esc(r.supplierEmail || '') + '</div></td><td><span style="font-size:12px;color:var(--a5)">' + esc(r.procSubject || proc?.subject || '—') + '</span></td><td style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--t2)">' + fmtDT(r.repliedAt) + '</td><td style="max-width:180px;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc((r.preview || '').slice(0, 80)) + '</td><td>' + at + '</td><td><button class="btn btn-blue btn-xs">👁 Abrir</button></td>';
+        const rid = String(r.id);
+        tr.addEventListener('click', () => openReplyViewer(rid));
+        tr.querySelector('.btn-blue').addEventListener('click', e => { e.stopPropagation(); openReplyViewer(rid); });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openReplyViewer(id) {
+      const r = (window._repMap || {})[String(id)];
+      if (!r) { toast('Resposta não encontrada', 'var(--a1)'); return; }
+      window._currentReply = r;
+      const proc = S.processes.find(p => String(p.id) === String(r.procId));
+      document.getElementById('rv-supplier').textContent = r.supplierName + ' — ' + fmtDT(r.repliedAt);
+      document.getElementById('rv-subject').textContent = r.procSubject || proc?.subject || '(sem assunto)';
+      document.getElementById('rv-date').textContent = fmtDT(r.repliedAt);
+      document.getElementById('rv-proc').textContent = proc?.subject || '—';
+      document.getElementById('rv-body').textContent = r.preview || '(sem conteúdo)';
+      document.getElementById('rv-gmail-link').href = r.link ? 'https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(r.link) : '#';
+
+      const atts = (r.attachments || '').split(';').map(a => a.trim()).filter(Boolean);
+      const wrap = document.getElementById('rv-att-wrap');
+      const list = document.getElementById('rv-att-list');
+      if (atts.length) {
+        wrap.style.display = 'block';
+        list.innerHTML = atts.map(a => `<button class="tag tn" style="font-size:12px;padding:5px 12px;cursor:pointer;border:1px solid var(--bd)" onclick="downloadAttachment('${r.link}','${a.replace(/'/g, "\\'")}')">📎 ${esc(a)}</button>`).join('');
+      }
+      else wrap.style.display = 'none';
+      openModal('modal-reply-view');
+    }
+
+    async function saveProcObs(pid) {
+      const obs = document.getElementById('dp-obs').value.trim();
+      if (!CFG.apiUrl) { toast('Anotações salvas apenas localmente (API não configurada)', 'var(--a5)'); return; }
+      const r = await api('salvar_obs_processo', { pid, obs });
+      if (r) {
+        toast('✅ Anotações salvas!');
+        const p = S.processes.find(x => String(x.id) === String(pid));
+        if (p) p.Observacoes = obs;
+        saveState();
+      }
+    }
+
+    async function downloadAttachment(msgId, filename) {
+      if (!CFG.apiUrl) return;
+      const sep = CFG.apiUrl.indexOf('?') !== -1 ? '&' : '?';
+      const dlUrl = CFG.apiUrl + sep + 'action=baixar_anexo&dl=1&msgId=' + encodeURIComponent(msgId) + '&filename=' + encodeURIComponent(filename);
+      toast('📥 Iniciando download de ' + filename + '...');
+      window.open(dlUrl, '_blank');
+    }
+
+    function printReplyPDF() {
+      const r = window._currentReply; if (!r) return;
+      const proc = S.processes.find(p => String(p.id) === String(r.procId));
+      const atts = (r.attachments || '').split(';').filter(Boolean);
+      openPrintWin('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resposta</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#222;line-height:1.6}h1{font-size:18px;border-bottom:2px solid #ff4d6d;padding-bottom:8px;color:#ff4d6d}.meta{background:#f5f5f5;border-radius:6px;padding:14px;margin:14px 0;font-size:13px}.body-sec{background:#fafafa;border-left:3px solid #ff4d6d;padding:14px;margin:14px 0;font-size:13px;white-space:pre-wrap}.footer{margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}@media print{body{margin:20px}}</style></head><body><h1>📧 Resposta — ShootMail</h1><div class="meta"><div><strong>Fornecedor:</strong> ' + r.supplierName + '</div><div><strong>Email:</strong> ' + (r.supplierEmail || '—') + '</div><div><strong>Data:</strong> ' + fmtDT(r.repliedAt) + '</div><div><strong>Processo:</strong> ' + (proc?.subject || '—') + '</div></div><div class="body-sec">' + (r.preview || '') + '</div>' + (atts.length ? '<p><strong>📎 Anexos:</strong> ' + atts.map(a => a.trim()).join(', ') + '</p>' : '') + '<div class="footer">ShootMail · ' + new Date().toLocaleString('pt-BR') + ' — use Ctrl+P para salvar como PDF</div></body></html>');
+    }
+
+    async function checkReplies() { const r = await api('verificar_respostas', {}); if (r && r.novas_respostas > 0) { toast('📬 ' + r.novas_respostas + ' nova(s) resposta(s)'); await syncAll(); } else { await loadReplies(); } }
+
+    // ══ DASHBOARD ══
+    function resetDashF() { document.getElementById('df-type').value = ''; document.getElementById('df-mat').value = ''; document.getElementById('df-period').value = 'all'; renderDash(); }
+    function renderDash() {
+      const allM = [...new Set(S.suppliers.flatMap(s => (s.mats || '').split(',').map(m => m.trim()))).values()].filter(Boolean);
+      const dm = document.getElementById('df-mat'); const cm = dm.value; dm.innerHTML = '<option value="">Todos os materiais</option>'; allM.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; if (m === cm) o.selected = true; dm.appendChild(o); });
+      const ft = document.getElementById('df-type').value; const fm = document.getElementById('df-mat').value; const fp = document.getElementById('df-period').value;
+      const pmv = { today: 86400000, week: 604800000, month: 2592000000, all: Infinity }; const cut = fp === 'all' ? 0 : Date.now() - (pmv[fp] || Infinity);
+      let sups = S.suppliers.filter(s => (!ft || s.type === ft) && (!fm || (s.mats || '').includes(fm)));
+      let procs = S.processes.filter(p => new Date(p.createdAt).getTime() >= cut);
+      if (ft || fm) { const sid = new Set(sups.map(s => String(s.id))); procs = procs.filter(p => p.recipients?.some(r => sid.has(String(r.sid)))); }
+      const recs = procs.flatMap(p => p.recipients || []); const op = recs.filter(r => r.opened).length; const rp = recs.filter(r => r.replied).length; const orate = recs.length ? Math.round(op / recs.length * 100) : 0; const rrate = recs.length ? Math.round(rp / recs.length * 100) : 0;
+      document.getElementById('dash-stats').innerHTML = '<div class="scard"><div class="sc-ico">🏭</div><div class="sc-lbl">Fornecedores</div><div class="sc-val">' + sups.filter(s => s.status === 'active').length + '</div><div class="sc-sub">ativos</div></div><div class="scard g"><div class="sc-ico">◉</div><div class="sc-lbl">Processos</div><div class="sc-val">' + procs.length + '</div><div class="sc-sub">abertos</div></div><div class="scard o"><div class="sc-ico">👁</div><div class="sc-lbl">Tx. Abertura</div><div class="sc-val">' + orate + '%</div><div class="sc-sub">dos emails</div></div><div class="scard b"><div class="sc-ico">💬</div><div class="sc-lbl">Tx. Resposta</div><div class="sc-val">' + rrate + '%</div><div class="sc-sub">dos emails</div></div>';
+      const recent = [...procs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+      const re = document.getElementById('dash-recent');
+      if (!recent.length) { re.innerHTML = '<div class="empty" style="padding:28px"><div class="eico">◉</div><h3>Sem processos</h3></div>'; }
+      else { re.innerHTML = ''; recent.forEach(p => { const rp2 = p.recipients?.filter(r => r.replied).length || Number(p.totalResp) || 0; const op2 = p.recipients?.filter(r => r.opened).length || Number(p.totalAbr) || 0; const div = document.createElement('div'); div.style.cssText = 'padding:11px 15px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:11px;transition:background .12s'; div.innerHTML = '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.subject) + '</div><div style="font-size:10.5px;color:var(--t3);margin-top:2px">' + (p.recipients?.length || 0) + ' dest. · ' + fmtD(p.createdAt) + '</div></div><div style="display:flex;gap:4px"><span class="tag tg" style="font-size:9.5px">💬 ' + rp2 + '</span><span class="tag ty" style="font-size:9.5px">👁 ' + op2 + '</span></div>'; div.addEventListener('mouseenter', () => div.style.background = 'rgba(255,255,255,.015)'); div.addEventListener('mouseleave', () => div.style.background = 'none'); div.addEventListener('click', () => openProcPanel(p.id)); re.appendChild(div); }); }
+      const typeCnt = {}; sups.filter(s => s.status === 'active').forEach(s => { typeCnt[s.type] = (typeCnt[s.type] || 0) + 1; }); const entries = Object.entries(typeCnt).sort((a, b) => b[1] - a[1]); const maxV = Math.max(...entries.map(e => e[1]), 1); const te = document.getElementById('dash-types'); if (!entries.length) { te.innerHTML = '<div class="empty" style="padding:20px"><div class="eico" style="font-size:28px">📦</div><h3>Sem fornecedores</h3></div>'; } else { te.innerHTML = entries.map(([t, c]) => '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>' + esc(t) + '</span><span style="font-family:\'JetBrains Mono\',monospace;color:var(--t3)">' + c + '</span></div><div class="prog"><div class="prog-fill" style="width:' + Math.round(c / maxV * 100) + '%"></div></div></div>').join(''); }
+      // Draw timeline chart
+      const chartDays = Number(document.getElementById('df-chart-period')?.value) || 30;
+      requestAnimationFrame(() => drawChart(chartDays));
+    }
+
+    // ══ SETTINGS ══
+    function renderSettings() { document.getElementById('cfg-gmail').value = CFG.gmailEmail || ''; document.getElementById('cfg-gname').value = CFG.gmailName || ''; document.getElementById('cfg-sid').value = CFG.sheetId || ''; document.getElementById('cfg-url').value = CFG.apiUrl || ''; updateSettingsUI(); }
+    function updateSettingsUI() {
+      const gb = document.getElementById('gmail-badge');
+      const sb = document.getElementById('sheets-badge');
+      const syb = document.getElementById('sync-status-badge');
+      const sybt = document.getElementById('btn-toggle-sync');
+
+      if (CFG.gmailEmail) { gb.className = 'status-badge sb-ok'; gb.textContent = '✓ ' + CFG.gmailEmail; } else { gb.className = 'status-badge sb-warn'; gb.textContent = '○ Não configurado'; }
+      if (CFG.apiUrl) { sb.className = 'status-badge sb-ok'; sb.textContent = '✓ Conectado'; } else { sb.className = 'status-badge sb-warn'; sb.textContent = '○ Não configurado'; }
+
+      if (S.autoSync) {
+        syb.className = 'status-badge sb-ok';
+        syb.textContent = '● Ativado (15 min)';
+        sybt.className = 'btn btn-sm btn-ghost';
+        sybt.style.color = 'var(--a1)';
+        sybt.textContent = 'Desativar';
+      } else {
+        syb.className = 'status-badge sb-warn';
+        syb.textContent = '○ Desativado';
+        sybt.className = 'btn btn-sm btn-green';
+        sybt.textContent = 'Ativar agora';
+      }
+
+      const fd = document.getElementById('foot-dot'); const ft = document.getElementById('foot-txt');
+      if (connected) { fd.className = 'dot live'; ft.textContent = 'Conectado ao Sheets'; } else { fd.className = 'dot warn'; ft.textContent = 'Configurar API'; }
+      const bs = document.getElementById('btn-sync'); const ls = document.getElementById('sync-lbl');
+      if (CFG.apiUrl) { bs.style.display = 'flex'; ls.style.display = 'flex'; } else { bs.style.display = 'none'; ls.style.display = 'none'; }
+    }
+
+    async function toggleAutoSync() {
+      if (!CFG.apiUrl) { toast('Configure a API primeiro!', 'var(--a1)'); return; }
+      const newState = !S.autoSync;
+      toast(newState ? '🚀 Ativando sincronização automática...' : '🛑 Desativando...', newState ? 'var(--a3)' : 'var(--a1)');
+
+      const r = await api('alternar_auto_sync', { enabled: newState });
+      if (r) {
+        S.autoSync = newState;
+        saveState();
+        updateSettingsUI();
+        if (S.autoSync) {
+          toast('✅ Verificação a cada 15 min ativada!');
+          _startAutoSyncLoop();
+        } else {
+          toast('⏹ Verificação automática parada.');
+        }
+      }
+    }
+
+    function _startAutoSyncLoop() {
+      if (window._autoSyncTimer) clearInterval(window._autoSyncTimer);
+      if (!S.autoSync) return;
+      // Loop local para atualizar a interface (o GAS já tem o gatilho, mas o frontend pode forçar a cada 15 min também se aberto)
+      window._autoSyncTimer = setInterval(async () => {
+        if (!S.autoSync || !CFG.apiUrl) { clearInterval(window._autoSyncTimer); return; }
+        console.log('Auto-sync: verificando novas respostas...');
+        const r = await api('verificar_respostas', {});
+        if (r && r.novas_respostas > 0) {
+          toast('📬 ' + r.novas_respostas + ' nova(s) resposta(s) via auto-sync!');
+          syncAll();
+        }
+      }, 15 * 60 * 1000);
+    }
+    function saveGmailCfg() { CFG.gmailEmail = document.getElementById('cfg-gmail').value.trim(); CFG.gmailName = document.getElementById('cfg-gname').value.trim(); saveCfg(); if (CFG.apiUrl) { api('salvar_config', { chave: 'gmail_remetente', valor: CFG.gmailEmail }); api('salvar_config', { chave: 'gmail_nome', valor: CFG.gmailName }); } toast('✉️ Gmail salvo!'); updateSettingsUI(); }
+    function saveSheetsCfg() { CFG.sheetId = document.getElementById('cfg-sid').value.trim(); CFG.apiUrl = document.getElementById('cfg-url').value.trim(); saveCfg(); toast('📊 Sheets salvo!'); updateSettingsUI(); if (CFG.apiUrl) testConn(); }
+
+    async function testConn() {
+      document.getElementById('ci-api').textContent = '🔄'; document.getElementById('cl-api').textContent = 'Testando...';
+      if (!CFG.apiUrl) { document.getElementById('ci-api').textContent = '❌'; document.getElementById('cl-api').textContent = 'URL não configurada'; document.getElementById('conn-err').style.display = 'block'; document.getElementById('conn-err').textContent = 'Configure a URL do Web App primeiro.'; return; }
+      const r = await api('ler_todas_configs', {});
+      if (r !== null) { connected = true; document.getElementById('ci-api').textContent = '✅'; document.getElementById('cl-api').textContent = 'Conectado'; document.getElementById('ci-sh').textContent = '✅'; document.getElementById('cl-sh').textContent = (CFG.sheetId || '').slice(0, 12) + '...'; document.getElementById('ci-gm').textContent = CFG.gmailEmail ? '✅' : '⚠️'; document.getElementById('cl-gm').textContent = CFG.gmailEmail || 'Não definido'; document.getElementById('conn-err').style.display = 'none'; toast('✅ Conexão estabelecida!'); updateSettingsUI(); }
+      else { document.getElementById('ci-api').textContent = '❌'; document.getElementById('cl-api').textContent = 'Falha'; document.getElementById('conn-err').style.display = 'block'; document.getElementById('conn-err').textContent = 'Não foi possível conectar. Verifique a URL e as permissões do Web App (deve ser "Qualquer pessoa").'; }
+    }
+    async function syncAll() { if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; } const ls = document.getElementById('sync-lbl'); ls.textContent = '↻ Sincronizando...'; await loadSuppliers(true); await loadProcesses(true); await loadReplies(true); ls.textContent = '✓ ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); toast('↻ Sincronizado!'); renderDash(); updateBadges(); }
+
+    // ══ REPORTS ══
+    async function _fetchHistory(procId) {
+      if (!CFG.apiUrl) return [];
+      const r = await api('listar_disparos', { procId });
+      if (r && r.length) return r;
+      // Fallback: se não trouxe do sheets, tenta ler do estado local
+      const proc = S.processes.find(p => String(p.id) === String(procId));
+      if (!proc) return [];
+      let mock = [];
+      (proc.recipients || []).forEach(r => {
+        (r.dispatches || []).forEach(d => {
+          mock.push({ Data_Hora: d.at, Nome_Fornecedor: r.name, Nota: d.note, Status_Envio: 'ok' });
+        });
+      });
+      return mock.sort((a, b) => new Date(a.Data_Hora) - new Date(b.Data_Hora));
+    }
+
+    async function dlProcCSV(procId) {
+      const proc = S.processes.find(p => String(p.id) === String(procId)); if (!proc) return;
+      toast('⏳ Gerando relatório...');
+      const history = await _fetchHistory(procId);
+      const replies = S.replies.filter(r => String(r.procId) === String(procId));
+      const recs = proc.recipients || [];
+      const td = history.length || recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0);
+
+      const rows = [
+        ['RELATÓRIO DE PROCESSO — ShootMail'],
+        ['Assunto/Processo', proc.subject],
+        ['Criado em', fmtDT(proc.createdAt)],
+        ['Status', statusLbl(proc.status)],
+        ['Total de Disparos', td],
+        ['Abriram', recs.filter(r => r.opened).length + '/' + recs.length],
+        ['Responderam', recs.filter(r => r.replied).length + '/' + recs.length],
+        ['Anotações', proc.Observacoes || proc.obs || '—'],
+        [''],
+        ['CONTEÚDO ORIGINAL'],
+        ['Assunto', proc.subject],
+        ['Corpo', proc.body],
+        [''],
+        ['DESTINATÁRIOS'],
+        ['Nome', 'Email', 'Tipo', 'Disparos', 'Abriu', 'Abriu em', 'Respondeu'],
+        ...recs.map(r => [r.name, r.email, r.type, history.filter(h => String(h.Fornecedor_ID) === String(r.sid)).length || r.dispatches?.length || 1, r.opened ? 'Sim' : 'Não', fmtDT(r.openedAt), r.replied ? 'Sim' : 'Não']),
+        [''],
+        ['HISTÓRICO COMPLETO DE DISPAROS'],
+        ['Data/Hora', 'Fornecedor', 'Nota', 'Status', 'Erro'],
+        ...history.map(h => [fmtDT(h.Data_Hora), h.Nome_Fornecedor, h.Nota, h.Status_Envio, h.Erro || '']),
+        [''],
+        ['RESPOSTAS RECEBIDAS'],
+        ['Fornecedor', 'Email', 'Data/Hora', 'Conteúdo', 'Anexos', 'Link'],
+        ...replies.map(r => [r.supplierName, r.supplierEmail || '', fmtDT(r.repliedAt), r.preview || '', r.attachments || '', r.link || ''])
+      ];
+      dlCSV(rows, 'relatorio_processo_' + procId + '.csv');
+      toast('📥 CSV baixado!');
+    }
+
+    async function dlProcTxt(procId) {
+      const proc = S.processes.find(p => String(p.id) === String(procId)); if (!proc) return;
+      toast('⏳ Gerando relatório...');
+      const history = await _fetchHistory(procId);
+      const replies = S.replies.filter(r => String(r.procId) === String(procId));
+      const recs = proc.recipients || [];
+      const td = history.length || recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0);
+      const op = recs.filter(r => r.opened).length;
+      const rp = recs.filter(r => r.replied).length;
+
+      let txt = '============================================================\n';
+      txt += '   RELATÓRIO DE PROCESSO — ShootMail\n';
+      txt += '============================================================\n\n';
+      txt += 'Assunto  : ' + proc.subject + '\n';
+      txt += 'Criado em: ' + fmtDT(proc.createdAt) + '\n';
+      txt += 'Status   : ' + statusLbl(proc.status) + '\n';
+      txt += 'Anotações: ' + (proc.Observacoes || proc.obs || '—') + '\n\n';
+      txt += '── ESTATÍSTICAS\n';
+      txt += '  Total Disparos: ' + td + '\n';
+      txt += '  Abriram       : ' + op + '/' + recs.length + ' (' + (recs.length ? Math.round(op / recs.length * 100) : 0) + '%)\n';
+      txt += '  Responderam   : ' + rp + '/' + recs.length + ' (' + (recs.length ? Math.round(rp / recs.length * 100) : 0) + '%)\n\n';
+      txt += '── CONTEÚDO ORIGINAL\n';
+      txt += '  ASSUNTO: ' + proc.subject + '\n';
+      txt += '  CORPO:\n' + proc.body + '\n\n';
+      txt += '── DESTINATÁRIOS\n';
+      recs.forEach(r => {
+        const count = history.filter(h => String(h.Fornecedor_ID) === String(r.sid)).length || r.dispatches?.length || 1;
+        txt += '  • ' + r.name + ' <' + r.email + '> | ' + count + 'x | A:' + (r.opened ? 'Sim (' + fmtDT(r.openedAt) + ')' : 'Não') + ' R:' + (r.replied ? 'Sim' : 'Não') + '\n';
+      });
+      txt += '\n── HISTÓRICO DE DISPAROS\n';
+      if (!history.length) txt += '  Informação disponível apenas conectada ao Sheets.\n';
+      history.forEach(h => {
+        txt += '  [' + fmtDT(h.Data_Hora) + '] ' + h.Nome_Fornecedor + ' - ' + h.Nota + ' (' + h.Status_Envio + ')\n';
+      });
+      txt += '\n── RESPOSTAS\n';
+      if (!replies.length) txt += '  Nenhuma resposta registrada.\n';
+      replies.forEach(r => {
+        txt += '  • FORNECEDOR: ' + r.supplierName + ' (' + r.supplierEmail + ')\n';
+        txt += '    DATA: ' + fmtDT(r.repliedAt) + '\n';
+        txt += '    ANEXOS: ' + (r.attachments || 'Nenhum') + '\n';
+        txt += '    CONTEÚDO:\n' + (r.preview || '') + '\n\n';
+      });
+
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'relatorio_processo_' + procId + '.txt'; a.click();
+      URL.revokeObjectURL(url);
+      toast('📄 TXT baixado!');
+    }
+
+    async function dlProcPDF(procId) {
+      const proc = S.processes.find(p => String(p.id) === String(procId)); if (!proc) return;
+      toast('⏳ Gerando relatório...');
+      const history = await _fetchHistory(procId);
+      const replies = S.replies.filter(r => String(r.procId) === String(procId));
+      const recs = proc.recipients || [];
+      const td = history.length || recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0);
+      const op = recs.filter(r => r.opened).length;
+      const rp = recs.filter(r => r.replied).length;
+
+      let destRows = '';
+      recs.forEach(r => {
+        const count = history.filter(h => String(h.Fornecedor_ID) === String(r.sid)).length || r.dispatches?.length || 1;
+        destRows += '<tr><td>' + r.name + '</td><td>' + r.email + '</td><td>' + r.type + '</td><td>' + count + '</td><td>' + (r.opened ? '✅ <br><small style="color:#666">' + fmtDT(r.openedAt) + '</small>' : '—') + '</td><td>' + (r.replied ? '✅' : '—') + '</td></tr>';
+      });
+
+      let histRows = '';
+      history.forEach(h => {
+        histRows += '<tr><td>' + fmtDT(h.Data_Hora) + '</td><td>' + h.Nome_Fornecedor + '</td><td>' + h.Nota + '</td><td>' + h.Status_Envio + '</td></tr>';
+      });
+
+      let repHtml = '<p style="color:#888">Nenhuma resposta.</p>';
+      if (replies.length) {
+        repHtml = '';
+        replies.forEach(r => {
+          repHtml += '<div style="border:1px solid #ddd;border-radius:6px;padding:12px;margin-bottom:10px"><b>' + r.supplierName + '</b> · <small>' + fmtDT(r.repliedAt) + '</small> · <small>' + r.supplierEmail + '</small><div style="background:#f9f9f9;padding:10px;border-left:3px solid #f4304d;margin-top:8px;font-size:12px;white-space:pre-wrap">' + (r.preview || '') + '</div>' + (r.attachments ? '<p style="margin:6px 0 0;font-size:11px">📎 ' + r.attachments + '</p>' : '') + '</div>';
+        });
+      }
+
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório ShootMail</title>
+      <style>
+        body{font-family:Arial,sans-serif;max-width:850px;margin:30px auto;color:#222;font-size:13px;line-height:1.5}
+        h1{color:#f4304d;border-bottom:2px solid #f4304d;padding-bottom:7px;margin-bottom:5px}
+        h2{font-size:14px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;color:#444;text-transform:uppercase}
+        .stats{display:flex;gap:12px;margin:15px 0}
+        .stat{background:#f8f9fa;border:1px solid #eee;border-radius:6px;padding:10px 16px;text-align:center;flex:1}
+        .stat strong{display:block;font-size:20px;color:#f4304d}
+        table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:15px}
+        th{background:#f2f2f2;padding:8px;text-align:left;border-bottom:2px solid #ddd}
+        td{padding:7px;border-bottom:1px solid #eee}
+        .content-box{background:#fcfcfc;border:1px solid #eee;border-radius:6px;padding:12px;margin-bottom:15px;white-space:pre-wrap;font-size:12px}
+        .footer{margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:10px;text-align:center}
+        @media print{body{margin:10px} .no-print{display:none}}
+      </style></head>
+      <body>
+        <h1>📊 Relatório — ShootMail</h1>
+        <p style="font-size:16px;font-weight:bold;margin:5px 0">${proc.subject}</p>
+        <p style="margin:0;color:#666">Criado em: ${fmtDT(proc.createdAt)} · Status: ${statusLbl(proc.status)}</p>
+        
+        <div class="stats">
+          <div class="stat"><strong>${td}</strong>Disparos</div>
+          <div class="stat"><strong>${op}/${recs.length}</strong>Abriram</div>
+          <div class="stat"><strong>${rp}/${recs.length}</strong>Responderam</div>
+          <div class="stat"><strong>${recs.length ? Math.round(rp / recs.length * 100) : 0}%</strong>Taxa Resp.</div>
+        </div>
+
+        <h2>✉️ Conteúdo Original</h2>
+        <div class="content-box"><b>Assunto:</b> ${proc.subject}\n\n<b>Corpo:</b>\n${proc.body}</div>
+
+        <h2>📝 Anotações Internas</h2>
+        <div class="content-box">${proc.Observacoes || proc.obs || '—'}</div>
+
+        <h2>👥 Destinatários</h2>
+        <table><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Disp.</th><th>Abriu</th><th>Resp.</th></tr>${destRows}</table>
+
+        <h2>🔁 Histórico de Disparos</h2>
+        <table><tr><th>Data/Hora</th><th>Fornecedor</th><th>Nota</th><th>Status</th></tr>${histRows || '<tr><td colspan="4" style="text-align:center;color:#888">Sem histórico detalhado (conecte ao Sheets)</td></tr>'}</table>
+
+        <h2>💬 Respostas (${replies.length})</h2>
+        ${repHtml}
+
+        <div class="footer">ShootMail · Documento gerado em ${new Date().toLocaleString('pt-BR')} · Ctrl+P para salvar PDF</div>
+      </body></html>`;
+
+      openPrintWin(html);
+    }
+
+    function openPrintWin(htmlStr) { const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 5000); toast('🖨 Abrindo para impressão — use Ctrl+P para salvar como PDF'); }
+
+    function bulkDeleteSups() {
+      const ids = [...document.querySelectorAll('.sup-cb:checked')].map(c => c.dataset.id);
+      if (!ids.length) return;
+      if (!confirm('Remover ' + ids.length + ' fornecedor(es) selecionado(s)?')) return;
+      S.suppliers = S.suppliers.filter(s => !ids.includes(String(s.id)));
+      saveState(); renderSuppliers(); updateBadges(); toast(ids.length + ' fornecedor(es) removido(s)', 'var(--a1)');
+      if (CFG.apiUrl) ids.forEach(id => api('deletar_fornecedor', { id }));
+    }
+    function bulkToggleSups(newStatus) {
+      const ids = [...document.querySelectorAll('.sup-cb:checked')].map(c => c.dataset.id);
+      if (!ids.length) return;
+      S.suppliers.forEach(s => { if (ids.includes(String(s.id))) s.status = newStatus; });
+      saveState(); renderSuppliers(); updateBadges();
+      toast(ids.length + ' fornecedor(es) ' + (newStatus === 'active' ? 'ativado(s)' : 'desativado(s)'));
+    }
+
+    // ══ AUTO-DISPATCH ══
+    function toggleAutoDispatch() {
+      const enabled = document.getElementById('c-auto-enable').checked;
+      const opts = document.getElementById('c-auto-opts');
+      if (opts) opts.style.display = enabled ? 'block' : 'none';
+    }
+    // Timer registry for auto-dispatches
+    window._autoTimers = window._autoTimers || {};
+    function startAutoDispatch(procId, silent = false) {
+      const proc = S.processes.find(p => String(p.id) === String(procId));
+      if (!proc || !proc.autoDispatch || !proc.autoDispatch.enabled) return;
+      const days = Number(proc.autoDispatch.days) || 2;
+      const ms = days * 24 * 60 * 60 * 1000;
+      if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
+      window._autoTimers[procId] = setInterval(async () => {
+        const p = S.processes.find(x => String(x.id) === String(procId));
+        if (!p || !p.autoDispatch?.enabled) { clearInterval(window._autoTimers[procId]); return; }
+        const maxR = Number(p.autoDispatch.maxResends) || 3;
+        const sentCount = (p.autoDispatch.sentCount || 0) + 1;
+        if (sentCount > maxR) { stopAutoDispatch(procId, p, 'limite atingido'); return; }
+        const stop = p.autoDispatch.stopOn;
+        const targets = p.recipients?.filter(r => {
+          if (stop === 'reply' && r.replied) return false;
+          return true;
+        }) || [];
+        if (!targets.length) { stopAutoDispatch(procId, p, 'todos responderam'); return; }
+        const now = new Date().toISOString();
+        targets.forEach(r => { r.dispatches = r.dispatches || []; r.dispatches.push({ at: now, note: 'Auto-reenvio #' + sentCount }); });
+        p.autoDispatch.sentCount = sentCount;
+        p.autoDispatch.lastSent = now;
+        saveState();
+        toast('🔁 Auto-reenvio #' + sentCount + ' para "' + p.subject + '" (' + targets.length + ' dest.)');
+        if (CFG.apiUrl) { for (const r of targets) { const b = p.body.replace(/{nome}/g, r.name).replace(/{empresa}/g, r.name).replace(/{tipo}/g, r.type); await api('enviar_email', { data: { para: r.email, assunto: p.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Auto-reenvio #' + sentCount } }); } }
+      }, ms);
+      if (!silent) toast('⏱ Auto-reenvio ativado para "' + proc.subject + '" a cada ' + days + ' dia(s)');
+    }
+    function stopAutoDispatch(procId, proc, reason) {
+      if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
+      delete window._autoTimers[procId];
+      const p = proc || S.processes.find(x => String(x.id) === String(procId));
+      if (p && p.autoDispatch) p.autoDispatch.enabled = false;
+      saveState();
+      toast('⏹ Auto-reenvio parado' + (reason ? ' — ' + reason : ''));
+    }
+    function toggleAutoDispatchProc(procId) {
+      const p = S.processes.find(x => String(x.id) === String(procId));
+      if (!p) return;
+      if (p.autoDispatch?.enabled) {
+        stopAutoDispatch(procId, p);
+        renderPanel(p);
+      } else {
+        if (!p.autoDispatch) p.autoDispatch = { enabled: true, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0 };
+        else p.autoDispatch.enabled = true;
+        saveState(); startAutoDispatch(procId); renderPanel(p);
+      }
+    }
+
+    // ══ TIMELINE CHART ══
+    function drawChart(days) {
+      const canvas = document.getElementById('dash-chart'); if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.offsetWidth || canvas.clientWidth || 800;
+      const H = 180;
+      canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+
+      const now = new Date(); now.setHours(23, 59, 59, 999);
+      const start = new Date(now); start.setDate(start.getDate() - days + 1); start.setHours(0, 0, 0, 0);
+
+      // Build day buckets
+      const buckets = [];
+      for (let i = 0; i < days; i++) {
+        const d = new Date(start); d.setDate(d.getDate() + i);
+        buckets.push({ date: new Date(d), sent: 0, replied: 0, label: '' });
+      }
+      const dayLabel = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+      // Count sent emails per day (from process dispatches)
+      S.processes.forEach(p => {
+        (p.recipients || []).forEach(r => {
+          (r.dispatches || [{ at: p.createdAt }]).forEach(d => {
+            const dt = new Date(d.at); if (isNaN(dt)) return;
+            const bi = Math.floor((dt - start) / (86400000));
+            if (bi >= 0 && bi < days) buckets[bi].sent++;
+          });
+        });
+      });
+      // Count replies per day
+      S.replies.forEach(r => {
+        const dt = new Date(r.repliedAt); if (isNaN(dt)) return;
+        const bi = Math.floor((dt - start) / (86400000));
+        if (bi >= 0 && bi < days) buckets[bi].replied++;
+      });
+
+      const maxVal = Math.max(1, ...buckets.map(b => Math.max(b.sent, b.replied)));
+      const padL = 36, padR = 14, padT = 16, padB = 32;
+      const cW = W - padL - padR, cH = H - padT - padB;
+      const step = cW / (days - 1 || 1);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + cH * (1 - i / 4);
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.3)';
+        ctx.font = `${10 * devicePixelRatio / devicePixelRatio}px 'JetBrains Mono',monospace`;
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.round(maxVal * i / 4), padL - 5, y + 4);
+      }
+
+      // X labels (show ~7)
+      const labelStep = Math.max(1, Math.floor(days / 7));
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.textAlign = 'center';
+      ctx.font = `9px 'JetBrains Mono',monospace`;
+      buckets.forEach((b, i) => { if (i % labelStep === 0 || i === days - 1) { ctx.fillText(dayLabel(b.date), padL + i * step, H - padB + 14); } });
+
+      // Draw area + line helper
+      function drawSeries(data, color, alpha) {
+        const pts = data.map((v, i) => ({ x: padL + i * step, y: padT + cH * (1 - v / maxVal) }));
+        // Area fill
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, padT + cH);
+        pts.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(pts[pts.length - 1].x, padT + cH);
+        ctx.closePath();
+        ctx.fillStyle = color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+        ctx.fill();
+        // Line
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+        pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.stroke();
+        // Dots on non-zero points
+        pts.forEach((p, i) => { if (data[i] > 0) { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); } });
+      }
+
+      drawSeries(buckets.map(b => b.sent), 'rgb(255,77,109)', 0.15);
+      drawSeries(buckets.map(b => b.replied), 'rgb(77,255,195)', 0.15);
+    }
+
+    // ══ UTILS ══
+    function esc(str) { return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function dlCSV(rows, fname) { const csv = rows.map(r => Array.isArray(r) ? r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',') : '').join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fname; a.click(); URL.revokeObjectURL(url); }
+    function fmtD(iso) { try { return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }); } catch { return '—'; } }
+    function fmtDT(iso) {
+      if (!iso || String(iso).includes('Invalid')) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '—';
+        return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+      } catch { return '—'; }
+    }
+    function statusLbl(s) { return { active: 'Em andamento', replied: 'Com respostas', pending: 'Agendado', done: 'Concluído' }[s] || s || '—'; }
+    function tcls(t) { return { Metal: 'tb', Plástico: 'to', Madeira: 'ty', Tecido: 'tr', Eletrônico: 'tg', Químico: 'tn', Embalagem: 'tn', Outro: 'tn' }[t] || 'tn'; }
+    function updateBadges() { document.getElementById('nb-sup').textContent = S.suppliers.filter(s => s.status === 'active').length; document.getElementById('nb-tpl').textContent = S.templates.length; document.getElementById('nb-proc').textContent = S.processes.length; document.getElementById('nb-rep').textContent = S.replies.length; }
+
+    // ══ INIT ══
+    document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); }));
+    loadAll(); initDemo(); updateBadges(); renderDash(); updateSettingsUI(); restartAutomations(); _startAutoSyncLoop();
+    if (CFG.apiUrl) setTimeout(() => syncAll(), 800);
+    function openNewSupModal() {
+      S.editSup = null;
+      clearSupForm();
+      document.getElementById('modal-sup-title').textContent = '+ Novo Fornecedor';
+      openModal('modal-sup');
+    }
+
+    function toggleAllSup(masterCb) {
+      document.querySelectorAll('.sup-cb').forEach(c => c.checked = masterCb.checked);
+      updateSupBulkBar();
+    }
+    function updateBulkBar() { updateSupBulkBar(); }
+    function updateSupBulkBar() {
+      const sel = document.querySelectorAll('.sup-cb:checked');
+      const bar = document.getElementById('sup-bulk-bar');
+      if (!bar) return;
+      if (sel.length > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('sup-bulk-count').textContent = sel.length + ' fornecedor(es) selecionado(s)';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+
+  </script>
+</body>
+
+</html>
