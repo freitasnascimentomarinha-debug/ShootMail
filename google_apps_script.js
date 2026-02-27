@@ -13,6 +13,7 @@ const ABA = {
     disparos: 'Disparos',
     respostas: 'Respostas',
     config: 'Config',
+    templates: 'Templates',
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -28,7 +29,8 @@ function setupPlanilha() {
         ],
         [ABA.processos]: [
             'ID', 'Assunto', 'Corpo_Email', 'Criado_Em', 'Status', 'Total_Destinatarios',
-            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes'
+            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes',
+            'AutoDispatch'
         ],
         [ABA.destinatarios]: [
             'ID', 'Processo_ID', 'Fornecedor_ID', 'Nome_Fornecedor', 'Email_Fornecedor',
@@ -43,6 +45,7 @@ function setupPlanilha() {
             'Assunto_Resposta', 'Preview', 'Respondido_Em', 'Link_Email', 'Anexos', 'Processo_Assunto'
         ],
         [ABA.config]: ['Chave', 'Valor'],
+        [ABA.templates]: ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo', 'Criado_Em'],
     };
 
     for (const [nome, headers] of Object.entries(abas)) {
@@ -87,6 +90,7 @@ function criarMenu() {
         .createMenu('⚡ ShootMail')
         .addItem('🔧 Configurar Planilha', 'setupPlanilha')
         .addItem('📬 Verificar Gmail Agora', 'verificarRespostas')
+        .addItem('🔁 Processar Auto-Reenvios Agora', 'processarAgendamentos')
         .addItem('▶ Ativar Verificação Automática (15min)', 'ativarTrigger')
         .addItem('⏹ Desativar Verificação Automática', 'desativarTrigger')
         .addToUi();
@@ -186,6 +190,14 @@ function _processRequest(params) {
             // ── Processos ──
             case 'listar_processos': result = listarProcessos(body.incluir_destinatarios); break;
             case 'salvar_processo': result = salvarProcesso(body.data); break;
+
+            // ── Templates ──
+            case 'listar_templates': result = listarTemplates(); break;
+            case 'salvar_template': result = salvarTemplate(body.data); break;
+            case 'deletar_template': result = deletarTemplate(body.id); break;
+
+            // ── Auto-Dispatch ──
+            case 'atualizar_auto_dispatch': result = atualizarAutoDispatch(body.proc_id, body.auto_dispatch); break;
 
             // ── Email ──
             case 'enviar_email': result = enviarEmail(body.data); break;
@@ -303,7 +315,9 @@ function salvarProcesso(d) {
         d.total_destinatarios || 0,
         0, 0, 0,
         d.agendado_para || '',
-        now
+        now,
+        '', // Observacoes
+        d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : '' // AutoDispatch
     ]);
 
     // Grava destinatários em lote, se fornecidos
@@ -666,6 +680,10 @@ function ativarTrigger() {
         .timeBased()
         .everyMinutes(15)
         .create();
+    ScriptApp.newTrigger('processarAgendamentos')
+        .timeBased()
+        .everyHours(1)
+        .create();
     salvarConfig('verificacao_ativa', 'true');
     return { ok: true, msg: 'Verificação automática ativada (15 min)' };
 }
@@ -673,10 +691,146 @@ function ativarTrigger() {
 function desativarTrigger() {
     const triggers = ScriptApp.getProjectTriggers();
     triggers.forEach(t => {
-        if (t.getHandlerFunction() === 'verificarRespostas') ScriptApp.deleteTrigger(t);
+        if (t.getHandlerFunction() === 'verificarRespostas' ||
+            t.getHandlerFunction() === 'processarAgendamentos') {
+            ScriptApp.deleteTrigger(t);
+        }
     });
     salvarConfig('verificacao_ativa', 'false');
     return { ok: true, msg: 'Verificação automática desativada' };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TEMPLATES
+// ══════════════════════════════════════════════════════════════════
+function listarTemplates() {
+    return sheetToObjects(getSheet(ABA.templates));
+}
+
+function salvarTemplate(d) {
+    const sheet = getSheet(ABA.templates);
+    const now = new Date().toISOString();
+    if (d.id) {
+        const row = findRow(sheet, d.id);
+        if (row) {
+            sheet.getRange(row, 1, 1, 6).setValues([[
+                d.id, d.nome || d.name, d.categoria || d.cat || '',
+                d.assunto || d.subject || '', d.corpo || d.body || '',
+                sheet.getRange(row, 6).getValue() // mantém Criado_Em
+            ]]);
+            return { id: d.id };
+        }
+    }
+    const id = d.id || nextId(sheet);
+    sheet.appendRow([id, d.nome || d.name, d.categoria || d.cat || '',
+        d.assunto || d.subject || '', d.corpo || d.body || '', now]);
+    return { id };
+}
+
+function deletarTemplate(id) {
+    const sheet = getSheet(ABA.templates);
+    const row = findRow(sheet, id);
+    if (row) sheet.deleteRow(row);
+    return { ok: true };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  AUTO-DISPATCH
+// ══════════════════════════════════════════════════════════════════
+function atualizarAutoDispatch(procId, autoDispatch) {
+    const sheet = getSheet(ABA.processos);
+    const row = findRow(sheet, procId);
+    if (!row) throw new Error('Processo não encontrado: ' + procId);
+    // Find or create AutoDispatch column
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    let col = headers.indexOf('AutoDispatch') + 1;
+    if (col === 0) {
+        col = sheet.getLastColumn() + 1;
+        sheet.getRange(1, col).setValue('AutoDispatch')
+            .setBackground('#1c1f2e').setFontColor('#6b6f90').setFontWeight('bold');
+    }
+    sheet.getRange(row, col).setValue(autoDispatch ? JSON.stringify(autoDispatch) : '');
+    return { ok: true };
+}
+
+function processarAgendamentos() {
+    try {
+        const procSheet = getSheet(ABA.processos);
+        const destSheet = getSheet(ABA.destinatarios);
+        const fornSheet = getSheet(ABA.fornecedores);
+        const processos = sheetToObjects(procSheet);
+        const destinatarios = sheetToObjects(destSheet);
+        const fornecedores = sheetToObjects(fornSheet);
+        const cfg = lerTodasConfigs();
+        const now = new Date();
+        let totalEnviados = 0;
+
+        processos.forEach(proc => {
+            if (!proc.AutoDispatch) return;
+            let ad;
+            try { ad = JSON.parse(proc.AutoDispatch); } catch (e) { return; }
+            if (!ad || !ad.enabled) return;
+
+            const days = Number(ad.days) || 2;
+            const maxResends = Number(ad.maxResends) || 3;
+            const sentCount = Number(ad.sentCount) || 0;
+            if (sentCount >= maxResends) return;
+
+            // Check if enough time has elapsed since last send
+            const lastSentDate = ad.lastSent ? new Date(ad.lastSent) : (proc.Criado_Em ? new Date(proc.Criado_Em) : new Date(0));
+            const elapsedDays = (now - lastSentDate) / (1000 * 60 * 60 * 24);
+            if (elapsedDays < days) return;
+
+            // Get recipients for this process
+            const recips = destinatarios.filter(d => String(d.Processo_ID) === String(proc.ID));
+            const targets = recips.filter(r => {
+                if (ad.stopOn === 'reply' && String(r.Respondeu).toUpperCase() === 'TRUE') return false;
+                return true;
+            });
+
+            if (!targets.length) {
+                ad.enabled = false;
+                atualizarAutoDispatch(proc.ID, ad);
+                return;
+            }
+
+            const newSentCount = sentCount + 1;
+            const nowIso = now.toISOString();
+
+            targets.forEach(rec => {
+                const forn = fornecedores.find(f => String(f.ID) === String(rec.Fornecedor_ID));
+                try {
+                    enviarEmail({
+                        para: rec.Email_Fornecedor,
+                        para2: forn ? (forn.Email2 || '') : '',
+                        para3: forn ? (forn.Email3 || '') : '',
+                        assunto: proc.Assunto,
+                        corpo: proc.Corpo_Email,
+                        nome_remetente: cfg.gmail_nome || 'ShootMail',
+                        processo_id: proc.ID,
+                        fornecedor_id: rec.Fornecedor_ID,
+                        nome_fornecedor: rec.Nome_Fornecedor,
+                        tipo_material: rec.Tipo_Material || '',
+                        nota: 'Auto-reenvio #' + newSentCount
+                    });
+                    totalEnviados++;
+                } catch (e) {
+                    console.error('Erro no auto-reenvio para ' + rec.Nome_Fornecedor + ':', e);
+                }
+            });
+
+            ad.sentCount = newSentCount;
+            ad.lastSent = nowIso;
+            if (newSentCount >= maxResends) ad.enabled = false;
+            atualizarAutoDispatch(proc.ID, ad);
+        });
+
+        SpreadsheetApp.flush();
+        return { ok: true, enviados: totalEnviados };
+    } catch (err) {
+        console.error('Erro em processarAgendamentos:', err);
+        return { ok: false, error: err.toString() };
+    }
 }
 
 function getMyEmailSafely() {
