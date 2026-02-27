@@ -2593,9 +2593,11 @@
       if (_editTplId === null) { toast('Selecione um modelo na lista para excluí-lo', 'var(--a1)'); return; }
       const tName = (S.templates.find(t => String(t.id) === String(_editTplId)) || {}).name || '';
       if (!confirm('Excluir o modelo "' + tName + '"?\nEsta ação não pode ser desfeita.')) return;
+      const idToDelete = _editTplId;
       S.templates = S.templates.filter(t => String(t.id) !== String(_editTplId));
       saveState(); renderTemplates(); newTemplate(); updateBadges();
       toast('Modelo excluído', 'var(--a1)');
+      if (CFG.apiUrl) api('deletar_template', { id: idToDelete });
     }
 
     function saveTpl() {
@@ -2604,16 +2606,19 @@
       const body = document.getElementById('tpl-body').value.trim();
       if (!name || !subject || !body) { toast('Preencha nome, assunto e corpo', 'var(--a1)'); return; }
       const cat = document.getElementById('tpl-cat').value;
+      let tplData;
       if (_editTplId !== null) {
         const i = S.templates.findIndex(t => String(t.id) === String(_editTplId));
-        if (i !== -1) S.templates[i] = { ...S.templates[i], name, cat, subject, body };
+        if (i !== -1) { tplData = { ...S.templates[i], name, cat, subject, body }; S.templates[i] = tplData; }
         toast('✅ Modelo atualizado!');
       } else {
         const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
-        S.templates.push({ id: newId, name, cat, subject, body });
+        tplData = { id: newId, name, cat, subject, body };
+        S.templates.push(tplData);
         toast('✅ Modelo salvo!');
       }
       saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
+      if (CFG.apiUrl && tplData) api('salvar_template', { data: { id: tplData.id, nome: tplData.name, categoria: tplData.cat, assunto: tplData.subject, corpo: tplData.body } });
     }
 
     function deleteTpl(id) {
@@ -2621,6 +2626,7 @@
       S.templates = S.templates.filter(t => String(t.id) !== String(id));
       if (String(_editTplId) === String(id)) newTemplate();
       saveState(); renderTemplates(); updateBadges(); updateTplSelect(); toast('Modelo removido', 'var(--a1)');
+      if (CFG.apiUrl) api('deletar_template', { id });
     }
 
     function useTemplate(id) {
@@ -2652,10 +2658,12 @@
       const name = document.getElementById('stpl-name').value.trim(); if (!name) { toast('Digite um nome', 'var(--a1)'); return; }
       const cat = document.getElementById('stpl-cat').value;
       const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
-      S.templates.push({ id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' });
+      const tplData = { id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' };
+      S.templates.push(tplData);
       saveState(); updateBadges(); updateTplSelect();
       closeModal('modal-save-tpl');
       toast('✅ Modelo "' + name + '" salvo!');
+      if (CFG.apiUrl) api('salvar_template', { data: { id: tplData.id, nome: tplData.name, categoria: tplData.cat, assunto: tplData.subject, corpo: tplData.body } });
     }
 
     function saveCurrentAsTemplate() {
@@ -2666,6 +2674,21 @@
       window._tplSaveBody = body;
       document.getElementById('stpl-name').value = '';
       openModal('modal-save-tpl');
+    }
+
+    async function loadTemplates(silent) {
+      if (!CFG.apiUrl) return;
+      const data = await api('listar_templates', {});
+      if (!data || !Array.isArray(data)) return;
+      S.templates = data.map(t => ({
+        id: t.ID || t.id,
+        name: t.Nome || t.name || '',
+        cat: t.Categoria || t.cat || '',
+        subject: t.Assunto || t.subject || '',
+        body: t.Corpo || t.body || ''
+      })).filter(t => t.id);
+      saveState(); renderTemplates(); updateBadges(); updateTplSelect();
+      if (!silent) toast('📋 Modelos sincronizados!');
     }
 
     // ══ MATERIAL TYPES ══
@@ -2949,6 +2972,12 @@
 
       // Se estiver conectado à API, salva o processo lá para garantir que os contadores funcionem
       if (CFG.apiUrl) {
+        // Read auto-dispatch settings early so we can pass them to salvar_processo
+        const autoEnabled = document.getElementById('c-auto-enable')?.checked;
+        const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
+        const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
+        const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
+        const autoDispatchPayload = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
         await api('salvar_processo', {
           id: pid,
           data: {
@@ -2957,6 +2986,7 @@
             corpo: body,
             status: 'active',
             total_destinatarios: recips.length,
+            auto_dispatch: autoDispatchPayload,
             destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type })) // PASSANDO EM LOTE
           }
         });
@@ -3342,7 +3372,7 @@
       if (r !== null) { connected = true; document.getElementById('ci-api').textContent = '✅'; document.getElementById('cl-api').textContent = 'Conectado'; document.getElementById('ci-sh').textContent = '✅'; document.getElementById('cl-sh').textContent = (CFG.sheetId || '').slice(0, 12) + '...'; document.getElementById('ci-gm').textContent = CFG.gmailEmail ? '✅' : '⚠️'; document.getElementById('cl-gm').textContent = CFG.gmailEmail || 'Não definido'; document.getElementById('conn-err').style.display = 'none'; toast('✅ Conexão estabelecida!'); updateSettingsUI(); }
       else { document.getElementById('ci-api').textContent = '❌'; document.getElementById('cl-api').textContent = 'Falha'; document.getElementById('conn-err').style.display = 'block'; document.getElementById('conn-err').textContent = 'Não foi possível conectar. Verifique a URL e as permissões do Web App (deve ser "Qualquer pessoa").'; }
     }
-    async function syncAll() { if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; } const ls = document.getElementById('sync-lbl'); ls.textContent = '↻ Sincronizando...'; await loadSuppliers(true); await loadProcesses(true); await loadReplies(true); ls.textContent = '✓ ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); toast('↻ Sincronizado!'); renderDash(); updateBadges(); }
+    async function syncAll() { if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; } const ls = document.getElementById('sync-lbl'); ls.textContent = '↻ Sincronizando...'; await loadSuppliers(true); await loadProcesses(true); await loadReplies(true); await loadTemplates(true); ls.textContent = '✓ ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); toast('↻ Sincronizado!'); renderDash(); updateBadges(); }
 
     // ══ REPORTS ══
     async function _fetchHistory(procId) {
@@ -3575,6 +3605,7 @@
         p.autoDispatch.sentCount = sentCount;
         p.autoDispatch.lastSent = now;
         saveState();
+        if (CFG.apiUrl) api('atualizar_auto_dispatch', { proc_id: procId, auto_dispatch: p.autoDispatch });
         toast('🔁 Auto-reenvio #' + sentCount + ' para "' + p.subject + '" (' + targets.length + ' dest.)');
         if (CFG.apiUrl) { for (const r of targets) { const b = p.body.replace(/{nome}/g, r.name).replace(/{empresa}/g, r.name).replace(/{tipo}/g, r.type); await api('enviar_email', { data: { para: r.email, assunto: p.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Auto-reenvio #' + sentCount } }); } }
       }, ms);
@@ -3587,6 +3618,7 @@
       if (p && p.autoDispatch) p.autoDispatch.enabled = false;
       saveState();
       toast('⏹ Auto-reenvio parado' + (reason ? ' — ' + reason : ''));
+      if (CFG.apiUrl && p?.autoDispatch) api('atualizar_auto_dispatch', { proc_id: procId, auto_dispatch: p.autoDispatch });
     }
     function toggleAutoDispatchProc(procId) {
       const p = S.processes.find(x => String(x.id) === String(procId));
@@ -3598,6 +3630,7 @@
         if (!p.autoDispatch) p.autoDispatch = { enabled: true, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0 };
         else p.autoDispatch.enabled = true;
         saveState(); startAutoDispatch(procId); renderPanel(p);
+        if (CFG.apiUrl) api('atualizar_auto_dispatch', { proc_id: procId, auto_dispatch: p.autoDispatch });
       }
     }
 
