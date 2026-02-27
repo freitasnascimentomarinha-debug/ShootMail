@@ -2072,6 +2072,23 @@
               </div>
             </div>
 
+            <div class="settings-section">
+              <div class="settings-hd">
+                <span class="settings-ico">🔁</span>
+                <div>
+                  <div class="settings-lbl">Auto-reenvio no Servidor</div>
+                  <div class="settings-sub">Continua enviando mesmo com o navegador fechado</div>
+                </div>
+              </div>
+              <div class="settings-bd">
+                <div
+                  style="background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:11px 13px;margin-bottom:13px;font-size:11.5px;color:var(--t2);line-height:1.7">
+                  Ativa um trigger no Google Apps Script para processar auto-reenvios a cada <strong style="color:var(--a4)">1 hora</strong>, garantindo que os disparos aconteçam mesmo que a aba do ShootMail seja fechada.
+                </div>
+                <button class="btn btn-amber btn-sm" onclick="ativarTriggerAutoDispatch()">⏱ Ativar Trigger de Auto-reenvio</button>
+              </div>
+            </div>
+
             <div class="settings-section full">
               <div class="settings-hd">
                 <span class="settings-ico">🚀</span>
@@ -2593,9 +2610,11 @@
       if (_editTplId === null) { toast('Selecione um modelo na lista para excluí-lo', 'var(--a1)'); return; }
       const tName = (S.templates.find(t => String(t.id) === String(_editTplId)) || {}).name || '';
       if (!confirm('Excluir o modelo "' + tName + '"?\nEsta ação não pode ser desfeita.')) return;
+      const deletedId = _editTplId;
       S.templates = S.templates.filter(t => String(t.id) !== String(_editTplId));
       saveState(); renderTemplates(); newTemplate(); updateBadges();
       toast('Modelo excluído', 'var(--a1)');
+      if (CFG.apiUrl) api('deletar_template', { id: deletedId });
     }
 
     function saveTpl() {
@@ -2607,13 +2626,16 @@
       if (_editTplId !== null) {
         const i = S.templates.findIndex(t => String(t.id) === String(_editTplId));
         if (i !== -1) S.templates[i] = { ...S.templates[i], name, cat, subject, body };
+        saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
         toast('✅ Modelo atualizado!');
+        if (CFG.apiUrl) api('atualizar_template', { id: _editTplId, name, cat, subject, body });
       } else {
         const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
         S.templates.push({ id: newId, name, cat, subject, body });
+        saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
         toast('✅ Modelo salvo!');
+        if (CFG.apiUrl) api('salvar_template', { id: newId, name, cat, subject, body });
       }
-      saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
     }
 
     function deleteTpl(id) {
@@ -2621,6 +2643,7 @@
       S.templates = S.templates.filter(t => String(t.id) !== String(id));
       if (String(_editTplId) === String(id)) newTemplate();
       saveState(); renderTemplates(); updateBadges(); updateTplSelect(); toast('Modelo removido', 'var(--a1)');
+      if (CFG.apiUrl) api('deletar_template', { id });
     }
 
     function useTemplate(id) {
@@ -2652,10 +2675,13 @@
       const name = document.getElementById('stpl-name').value.trim(); if (!name) { toast('Digite um nome', 'var(--a1)'); return; }
       const cat = document.getElementById('stpl-cat').value;
       const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
-      S.templates.push({ id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' });
+      const subject = window._tplSaveSubject || '';
+      const body = window._tplSaveBody || '';
+      S.templates.push({ id: newId, name, cat, subject, body });
       saveState(); updateBadges(); updateTplSelect();
       closeModal('modal-save-tpl');
       toast('✅ Modelo "' + name + '" salvo!');
+      if (CFG.apiUrl) api('salvar_template', { id: newId, name, cat, subject, body });
     }
 
     function saveCurrentAsTemplate() {
@@ -3335,6 +3361,14 @@
     function saveGmailCfg() { CFG.gmailEmail = document.getElementById('cfg-gmail').value.trim(); CFG.gmailName = document.getElementById('cfg-gname').value.trim(); saveCfg(); if (CFG.apiUrl) { api('salvar_config', { chave: 'gmail_remetente', valor: CFG.gmailEmail }); api('salvar_config', { chave: 'gmail_nome', valor: CFG.gmailName }); } toast('✉️ Gmail salvo!'); updateSettingsUI(); }
     function saveSheetsCfg() { CFG.sheetId = document.getElementById('cfg-sid').value.trim(); CFG.apiUrl = document.getElementById('cfg-url').value.trim(); saveCfg(); toast('📊 Sheets salvo!'); updateSettingsUI(); if (CFG.apiUrl) testConn(); }
 
+    async function ativarTriggerAutoDispatch() {
+      if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; }
+      toast('⏳ Ativando trigger...', 'var(--a4)');
+      const r = await api('ativar_auto_dispatch_trigger', {});
+      if (r) toast('✅ Trigger de auto-reenvio ativado no servidor!', 'var(--a3)');
+    }
+
+
     async function testConn() {
       document.getElementById('ci-api').textContent = '🔄'; document.getElementById('cl-api').textContent = 'Testando...';
       if (!CFG.apiUrl) { document.getElementById('ci-api').textContent = '❌'; document.getElementById('cl-api').textContent = 'URL não configurada'; document.getElementById('conn-err').style.display = 'block'; document.getElementById('conn-err').textContent = 'Configure a URL do Web App primeiro.'; return; }
@@ -3342,7 +3376,20 @@
       if (r !== null) { connected = true; document.getElementById('ci-api').textContent = '✅'; document.getElementById('cl-api').textContent = 'Conectado'; document.getElementById('ci-sh').textContent = '✅'; document.getElementById('cl-sh').textContent = (CFG.sheetId || '').slice(0, 12) + '...'; document.getElementById('ci-gm').textContent = CFG.gmailEmail ? '✅' : '⚠️'; document.getElementById('cl-gm').textContent = CFG.gmailEmail || 'Não definido'; document.getElementById('conn-err').style.display = 'none'; toast('✅ Conexão estabelecida!'); updateSettingsUI(); }
       else { document.getElementById('ci-api').textContent = '❌'; document.getElementById('cl-api').textContent = 'Falha'; document.getElementById('conn-err').style.display = 'block'; document.getElementById('conn-err').textContent = 'Não foi possível conectar. Verifique a URL e as permissões do Web App (deve ser "Qualquer pessoa").'; }
     }
-    async function syncAll() { if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; } const ls = document.getElementById('sync-lbl'); ls.textContent = '↻ Sincronizando...'; await loadSuppliers(true); await loadProcesses(true); await loadReplies(true); ls.textContent = '✓ ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); toast('↻ Sincronizado!'); renderDash(); updateBadges(); }
+    async function syncAll() { if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; } const ls = document.getElementById('sync-lbl'); ls.textContent = '↻ Sincronizando...'; await loadSuppliers(true); await loadProcesses(true); await loadReplies(true); await loadTemplates(true); ls.textContent = '✓ ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); toast('↻ Sincronizado!'); renderDash(); updateBadges(); }
+
+    async function loadTemplates(silent = false) {
+      if (!CFG.apiUrl) return;
+      const data = await api('listar_templates', {});
+      if (data && Array.isArray(data)) {
+        // Remote Google Sheets is the source of truth; replace local state
+        const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
+        S.templates = remote;
+        saveState(); renderTemplates(); updateBadges(); updateTplSelect();
+        if (!silent && remote.length) toast('📋 ' + remote.length + ' modelo(s) carregado(s)');
+      }
+    }
+
 
     // ══ REPORTS ══
     async function _fetchHistory(procId) {
@@ -3579,6 +3626,12 @@
         if (CFG.apiUrl) { for (const r of targets) { const b = p.body.replace(/{nome}/g, r.name).replace(/{empresa}/g, r.name).replace(/{tipo}/g, r.type); await api('enviar_email', { data: { para: r.email, assunto: p.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Auto-reenvio #' + sentCount } }); } }
       }, ms);
       if (!silent) toast('⏱ Auto-reenvio ativado para "' + proc.subject + '" a cada ' + days + ' dia(s)');
+      // Persist auto-dispatch config to Google Sheets so server-side trigger can continue even with browser closed
+      if (CFG.apiUrl) {
+        api('configurar_auto_dispatch', { processoId: procId, intervaloMs: ms, maxReenvios: proc.autoDispatch.maxResends || 3 })
+          .then(r => { if (!r) console.warn('Auto-dispatch: falha ao salvar configuração no servidor para processo ' + procId); })
+          .catch(e => console.error('Auto-dispatch: erro ao salvar configuração no servidor:', e));
+      }
     }
     function stopAutoDispatch(procId, proc, reason) {
       if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
