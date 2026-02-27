@@ -13,6 +13,7 @@ const ABA = {
     disparos: 'Disparos',
     respostas: 'Respostas',
     config: 'Config',
+    templates: 'Modelos',
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -43,6 +44,7 @@ function setupPlanilha() {
             'Assunto_Resposta', 'Preview', 'Respondido_Em', 'Link_Email', 'Anexos', 'Processo_Assunto'
         ],
         [ABA.config]: ['Chave', 'Valor'],
+        [ABA.templates]: ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo'],
     };
 
     for (const [nome, headers] of Object.entries(abas)) {
@@ -87,6 +89,7 @@ function criarMenu() {
         .createMenu('⚡ ShootMail')
         .addItem('🔧 Configurar Planilha', 'setupPlanilha')
         .addItem('📬 Verificar Gmail Agora', 'verificarRespostas')
+        .addItem('⏰ Processar Agendados/Auto-Reenvio', 'processarFilaBackground')
         .addItem('▶ Ativar Verificação Automática (15min)', 'ativarTrigger')
         .addItem('⏹ Desativar Verificação Automática', 'desativarTrigger')
         .addToUi();
@@ -208,6 +211,14 @@ function _processRequest(params) {
             // ── Obs Processo ──
             case 'salvar_obs_processo': result = salvarObsProcesso(body.pid, body.obs); break;
 
+            // ── Modelos ──
+            case 'listar_modelos': result = listarModelos(); break;
+            case 'salvar_modelo': result = salvarModelo(body.data); break;
+            case 'deletar_modelo': result = deletarModelo(body.id); break;
+
+            // ── Background Jobs (Force) ──
+            case 'processar_background': result = processarFilaBackground(); break;
+
             default:
                 // Ping de status
                 return { ok: true, msg: 'ShootMail API ativa', action: action || 'ping' };
@@ -303,7 +314,8 @@ function salvarProcesso(d) {
         d.total_destinatarios || 0,
         0, 0, 0,
         d.agendado_para || '',
-        now
+        now,
+        d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : ''
     ]);
 
     // Grava destinatários em lote, se fornecidos
@@ -340,6 +352,7 @@ function listarProcessos(incluirDest) {
 
         return procs.map(p => ({
             ...p,
+            autoDispatch: p.Auto_Dispatch ? JSON.parse(p.Auto_Dispatch) : null,
             destinatarios: dests.filter(d => String(d.Processo_ID) === String(p.ID))
         }));
     }
@@ -658,22 +671,170 @@ function salvarConfig(chave, valor) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  MODELOS
+// ══════════════════════════════════════════════════════════════════
+function listarModelos() {
+    return sheetToObjects(getSheet(ABA.templates));
+}
+
+function salvarModelo(d) {
+    const sheet = getSheet(ABA.templates);
+    if (d.id) {
+        const row = findRow(sheet, d.id);
+        if (!row) throw new Error('Modelo não encontrado');
+        sheet.getRange(row, 1, 1, 5).setValues([[d.id, d.name, d.cat, d.subject, d.body]]);
+        return { id: d.id };
+    } else {
+        const id = nextId(sheet);
+        sheet.appendRow([id, d.name, d.cat, d.subject, d.body]);
+        return { id };
+    }
+}
+
+function deletarModelo(id) {
+    const sheet = getSheet(ABA.templates);
+    const row = findRow(sheet, id);
+    if (row) sheet.deleteRow(row);
+    return { ok: true };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BACKGROUND JOBS
+// ══════════════════════════════════════════════════════════════════
+
+function processarFilaBackground() {
+    const resH = processarAgendados();
+    const resA = processarAutoReenvio();
+    return { agendados: resH, auto_reenvio: resA };
+}
+
+function processarAgendados() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ABA.processos);
+    const processados = sheetToObjects(sheet);
+    const agora = new Date();
+    let cont = 0;
+
+    processados.forEach(p => {
+        if (p.Status === 'pending' && p.Agendado_Para) {
+            const dataAg = new Date(p.Agendado_Para);
+            if (dataAg <= agora) {
+                enviarProcessoCompleto(p.ID);
+                const row = findRow(sheet, p.ID);
+                if (row) sheet.getRange(row, 5).setValue('active');
+                cont++;
+            }
+        }
+    });
+    return cont;
+}
+
+function processarAutoReenvio() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ABA.processos);
+    const processados = sheetToObjects(sheet);
+    const agora = new Date();
+    let cont = 0;
+
+    processados.forEach(p => {
+        if (p.Status === 'active' && p.Auto_Dispatch) {
+            const ad = JSON.parse(p.Auto_Dispatch);
+            if (!ad.enabled) return;
+
+            const intervalMs = (ad.days || 2) * 24 * 60 * 60 * 1000;
+            const lastSent = ad.lastSent ? new Date(ad.lastSent) : new Date(p.Criado_Em);
+
+            if (agora.getTime() - lastSent.getTime() >= intervalMs && ad.sentCount < ad.maxResends) {
+                // Seleciona alvos
+                const destSheet = ss.getSheetByName(ABA.destinatarios);
+                const dests = sheetToObjects(destSheet).filter(d => String(d.Processo_ID) === String(p.ID));
+
+                const targets = dests.filter(d => {
+                    if (ad.stopOn === 'reply' && (d.Respondeu === true || d.Respondeu === 'TRUE')) return false;
+                    return true;
+                });
+
+                if (targets.length > 0) {
+                    targets.forEach(t => {
+                        enviarEmail({
+                            para: t.Email_Fornecedor,
+                            assunto: p.Assunto,
+                            corpo: p.Corpo_Email,
+                            nome_remetente: 'ShootMail',
+                            processo_id: p.ID,
+                            fornecedor_id: t.Fornecedor_ID,
+                            nome_fornecedor: t.Nome_Fornecedor,
+                            nota: 'Auto-reenvio #' + (ad.sentCount + 1)
+                        });
+                    });
+
+                    ad.sentCount++;
+                    ad.lastSent = agora.toISOString();
+                    const row = findRow(sheet, p.ID);
+                    if (row) sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                    cont++;
+                } else {
+                    // Todos responderam ou não há mais o que fazer
+                    ad.enabled = false;
+                    const row = findRow(sheet, p.ID);
+                    if (row) sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                }
+            }
+        }
+    });
+    return cont;
+}
+
+function enviarProcessoCompleto(procId) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const procSheet = ss.getSheetByName(ABA.processos);
+    const destSheet = ss.getSheetByName(ABA.destinatarios);
+
+    const proc = sheetToObjects(procSheet).find(x => String(x.ID) === String(procId));
+    if (!proc) return;
+
+    const recips = sheetToObjects(destSheet).filter(x => String(x.Processo_ID) === String(procId));
+
+    recips.forEach(r => {
+        enviarEmail({
+            para: r.Email_Fornecedor,
+            assunto: proc.Assunto,
+            corpo: proc.Corpo_Email,
+            nome_remetente: 'ShootMail',
+            processo_id: procId,
+            fornecedor_id: r.Fornecedor_ID,
+            nome_fornecedor: r.Nome_Fornecedor,
+            nota: 'Envio agendado'
+        });
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  TRIGGERS — verificação automática
 // ══════════════════════════════════════════════════════════════════
 function ativarTrigger() {
     desativarTrigger(); // remove anteriores
+    // Trigger de respostas (Gmail)
     ScriptApp.newTrigger('verificarRespostas')
         .timeBased()
         .everyMinutes(15)
         .create();
+
+    // Trigger de fila (Agendados e Auto-reenvio)
+    ScriptApp.newTrigger('processarFilaBackground')
+        .timeBased()
+        .everyHours(1)
+        .create();
+
     salvarConfig('verificacao_ativa', 'true');
-    return { ok: true, msg: 'Verificação automática ativada (15 min)' };
+    return { ok: true, msg: 'Verificação automática ativada (15 min / 1 h)' };
 }
 
 function desativarTrigger() {
     const triggers = ScriptApp.getProjectTriggers();
+    const handlers = ['verificarRespostas', 'processarFilaBackground'];
     triggers.forEach(t => {
-        if (t.getHandlerFunction() === 'verificarRespostas') ScriptApp.deleteTrigger(t);
+        if (handlers.includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
     });
     salvarConfig('verificacao_ativa', 'false');
     return { ok: true, msg: 'Verificação automática desativada' };

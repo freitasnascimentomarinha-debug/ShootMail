@@ -2505,7 +2505,7 @@
       updateTypeSelects(); // Sync dynamic types
       if (t === 'dash') renderDash();
       if (t === 'suppliers') loadSuppliers();
-      if (t === 'templates') renderTemplates();
+      if (t === 'templates') loadTemplates();
       if (t === 'compose') renderCompose();
       if (t === 'processes') loadProcesses();
       if (t === 'replies') loadReplies();
@@ -2523,7 +2523,15 @@
     function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
 
-    // ══ TEMPLATES ══
+    async function loadTemplates() {
+      if (CFG.apiUrl) {
+        const data = await api('listar_modelos', {});
+        if (data) S.templates = data.map(r => ({ id: r.ID, name: r.Nome, cat: r.Categoria, subject: r.Assunto, body: r.Corpo }));
+        saveState();
+      }
+      renderTemplates();
+    }
+
     function renderTemplates() {
       const list = document.getElementById('tpl-list');
       const empty = document.getElementById('tpl-list-empty');
@@ -2589,35 +2597,45 @@
 
     function cancelTplEdit() { newTemplate(); }
 
-    function deleteTplEditing() {
+    async function deleteTplEditing() {
       if (_editTplId === null) { toast('Selecione um modelo na lista para excluí-lo', 'var(--a1)'); return; }
       const tName = (S.templates.find(t => String(t.id) === String(_editTplId)) || {}).name || '';
       if (!confirm('Excluir o modelo "' + tName + '"?\nEsta ação não pode ser desfeita.')) return;
+      if (CFG.apiUrl) await api('deletar_modelo', { id: _editTplId });
       S.templates = S.templates.filter(t => String(t.id) !== String(_editTplId));
       saveState(); renderTemplates(); newTemplate(); updateBadges();
       toast('Modelo excluído', 'var(--a1)');
     }
 
-    function saveTpl() {
+    async function saveTpl() {
       const name = document.getElementById('tpl-name').value.trim();
       const subject = document.getElementById('tpl-subject').value.trim();
       const body = document.getElementById('tpl-body').value.trim();
       if (!name || !subject || !body) { toast('Preencha nome, assunto e corpo', 'var(--a1)'); return; }
       const cat = document.getElementById('tpl-cat').value;
+      const data = { name, cat, subject, body };
+      if (_editTplId !== null) data.id = _editTplId;
+
+      if (CFG.apiUrl) {
+        const r = await api('salvar_modelo', { data });
+        if (r) toast(_editTplId ? '✅ Modelo atualizado!' : '✅ Modelo salvo no Sheets!');
+      }
+
       if (_editTplId !== null) {
         const i = S.templates.findIndex(t => String(t.id) === String(_editTplId));
-        if (i !== -1) S.templates[i] = { ...S.templates[i], name, cat, subject, body };
-        toast('✅ Modelo atualizado!');
+        if (i !== -1) S.templates[i] = { ...S.templates[i], ...data };
       } else {
         const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
-        S.templates.push({ id: newId, name, cat, subject, body });
-        toast('✅ Modelo salvo!');
+        S.templates.push({ id: newId, ...data });
       }
+
+      if (!CFG.apiUrl) toast(_editTplId ? '✅ Modelo atualizado!' : '✅ Modelo salvo!');
       saveState(); renderTemplates(); newTemplate(); updateBadges(); updateTplSelect();
     }
 
-    function deleteTpl(id) {
+    async function deleteTpl(id) {
       if (!confirm('Apagar este modelo?')) return;
+      if (CFG.apiUrl) await api('deletar_modelo', { id });
       S.templates = S.templates.filter(t => String(t.id) !== String(id));
       if (String(_editTplId) === String(id)) newTemplate();
       saveState(); renderTemplates(); updateBadges(); updateTplSelect(); toast('Modelo removido', 'var(--a1)');
@@ -2648,11 +2666,17 @@
       toast('📋 Modelo carregado!');
     }
 
-    function doSaveAsTemplate() {
+    async function doSaveAsTemplate() {
       const name = document.getElementById('stpl-name').value.trim(); if (!name) { toast('Digite um nome', 'var(--a1)'); return; }
       const cat = document.getElementById('stpl-cat').value;
+      const data = { name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' };
+
+      if (CFG.apiUrl) {
+        await api('salvar_modelo', { data });
+      }
+
       const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
-      S.templates.push({ id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' });
+      S.templates.push({ id: newId, ...data });
       saveState(); updateBadges(); updateTplSelect();
       closeModal('modal-save-tpl');
       toast('✅ Modelo "' + name + '" salvo!');
@@ -2936,16 +2960,30 @@
       const subject = document.getElementById('c-subject').value.trim();
       const body = document.getElementById('c-body').value.trim();
       const recips = getRecips();
+      const sched = document.getElementById('c-sched').value;
       if (S.isSending) return;
       if (!subject) { toast('Digite um assunto!', 'var(--a1)'); return; }
       if (!body) { toast('Digite o corpo do email!', 'var(--a1)'); return; }
       if (!recips.length) { toast('Selecione ao menos um fornecedor!', 'var(--a1)'); return; }
+
+      const isPending = !!sched;
+      if (isPending) {
+        const sDate = new Date(sched);
+        if (sDate <= new Date()) { toast('O agendamento deve ser para uma data futura!', 'var(--a1)'); return; }
+      }
 
       S.isSending = true;
       renderCompose(); // Update button state
 
       const pid = Date.now();
       const now = new Date().toISOString();
+
+      // Read auto-dispatch settings
+      const autoEnabled = document.getElementById('c-auto-enable')?.checked;
+      const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
+      const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
+      const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
+      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
 
       // Se estiver conectado à API, salva o processo lá para garantir que os contadores funcionem
       if (CFG.apiUrl) {
@@ -2955,23 +2993,31 @@
             id: pid,
             assunto: subject,
             corpo: body,
-            status: 'active',
+            status: isPending ? 'pending' : 'active',
             total_destinatarios: recips.length,
+            agendado_para: sched || '',
+            auto_dispatch: autoDispatch,
             destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type })) // PASSANDO EM LOTE
           }
         });
       }
 
-      // Read auto-dispatch settings
-      const autoEnabled = document.getElementById('c-auto-enable')?.checked;
-      const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
-      const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
-      const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
-      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
-      const proc = { id: pid, subject, body, createdAt: now, status: 'active', autoDispatch, recipients: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, email2: s.email2 || '', email3: s.email3 || '', type: s.type, dispatches: [{ at: now, note: 'Envio inicial' }], opened: false, replied: false })) };
+      // ── LOCAL STATE ──
+      const proc = { id: pid, subject, body, createdAt: now, status: isPending ? 'pending' : 'active', autoDispatch, recipients: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, email2: s.email2 || '', email3: s.email3 || '', type: s.type, dispatches: isPending ? [] : [{ at: now, note: 'Envio inicial' }], opened: false, replied: false })) };
       S.processes.push(proc);
-      recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
+      if (!isPending) {
+        recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
+      }
       saveState(); updateBadges(); closeModal('modal-preview');
+
+      // Se for agendado, não enviamos os emails agora
+      if (isPending) {
+        toast('✅ Processo agendado com sucesso!');
+        S.isSending = false;
+        renderCompose();
+        goTab('processes');
+        return;
+      }
 
       const atts = [];
       if (_selectedFiles.length) {
