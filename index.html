@@ -3017,7 +3017,26 @@
       }
 
       // ── LOCAL STATE ──
-      const proc = { id: pid, subject, body, createdAt: now, status: isPending ? 'pending' : 'active', autoDispatch, recipients: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, email2: s.email2 || '', email3: s.email3 || '', type: s.type, dispatches: isPending ? [] : [{ at: now, note: 'Envio inicial' }], opened: false, replied: false })) };
+      const proc = {
+        id: pid,
+        subject,
+        body,
+        createdAt: now,
+        status: isPending ? 'pending' : 'active',
+        autoDispatch,
+        proximoDisparo: isPending ? new Date(sched).toISOString() : (autoDispatch?.enabled ? proximo : ''),
+        recipients: recips.map(s => ({
+          sid: s.id,
+          name: s.name,
+          email: s.email,
+          email2: s.email2 || '',
+          email3: s.email3 || '',
+          type: s.type,
+          dispatches: [], // Começa vazio, o histórico virá do processamento real
+          opened: false,
+          replied: false
+        }))
+      };
       S.processes.push(proc);
       if (!isPending) {
         recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
@@ -3105,7 +3124,6 @@
             if (!merged.some(rp => String(rp.id) === String(lp.id))) {
               const age = Date.now() - new Date(lp.createdAt).getTime();
               const isRecentMatch = merged.some(rp => rp.subject === lp.subject && Math.abs(new Date(rp.createdAt) - new Date(lp.createdAt)) < 60000);
-              // Only keep if it's very recent or matches a recent remote item (sync hedge)
               if (!isRecentMatch && age < tenMin) merged.push(lp);
             }
           });
@@ -3174,11 +3192,19 @@
         h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + dispCount + 'x enviado · último: ' + (last ? fmtDT(last.at) : (dispCount > 0 ? fmtDT(proc.createdAt) : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
       });
       h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
-      let allD = []; recs.forEach(r => {
-        const baseDs = (r.dispatches?.length > 0) ? r.dispatches : (proc.status === 'pending' ? [] : [{ at: proc.createdAt, note: 'Envio inicial' }]);
-        baseDs.forEach(d => allD.push({ ...d, rn: r.name }));
+      let allD = [];
+      recs.forEach(r => {
+        const ds = r.dispatches || [];
+        ds.forEach(d => allD.push({ ...d, rn: r.name }));
       });
+
+      if (!allD.length && proc.status !== 'pending' && (Number(proc.totalDisp) > 0 || recs.some(r => r.sent))) {
+        // Fallback para quando o processo é antigo e não tinha dispatches individuais no cache
+        allD.push({ at: proc.createdAt, note: 'Envio inicial (legado)', rn: 'Destinatários' });
+      }
+
       allD.sort((a, b) => new Date(a.at) - new Date(b.at));
+      if (!allD.length) h += '<div style="color:var(--t3);font-size:12px;padding:5px 0">Nenhum disparo realizado ainda.</div>';
       allD.forEach((d, i) => { h += '<div class="tl-item"><div class="tl-num">' + (i + 1) + '</div><div style="flex:1"><div class="tl-date">' + fmtDT(d.at) + '</div><div class="tl-note">' + esc(d.note || 'Disparo') + ' · <span style="color:var(--t3)">' + esc(d.rn) + '</span></div></div></div>'; });
       h += '</div></div>';
       // Replies — store in map with string keys
