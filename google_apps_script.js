@@ -29,7 +29,7 @@ function setupPlanilha() {
         ],
         [ABA.processos]: [
             'ID', 'Assunto', 'Corpo_Email', 'Criado_Em', 'Status', 'Total_Destinatarios',
-            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes', 'Auto_Dispatch'
+            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes', 'Auto_Dispatch', 'Proximo_Disparo'
         ],
         [ABA.destinatarios]: [
             'ID', 'Processo_ID', 'Fornecedor_ID', 'Nome_Fornecedor', 'Email_Fornecedor',
@@ -309,6 +309,13 @@ function salvarProcesso(d) {
     const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     const id = d.id || nextId(procSheet);
 
+    let proximo = d.agendado_para || '';
+    if (!proximo && d.status === 'active' && d.auto_dispatch && d.auto_dispatch.enabled) {
+        const intervalMs = (Number(d.auto_dispatch.days) || 2) * 24 * 60 * 60 * 1000;
+        const nextDate = new Date(new Date().getTime() + intervalMs);
+        proximo = Utilities.formatDate(nextDate, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    }
+
     procSheet.appendRow([
         id, d.assunto, d.corpo,
         now,
@@ -318,7 +325,8 @@ function salvarProcesso(d) {
         d.agendado_para || '',
         now,
         d.observacoes || '',
-        d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : ''
+        d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : '',
+        proximo
     ]);
 
     // Grava destinatários em lote, se fornecidos
@@ -361,6 +369,7 @@ function listarProcessos(incluirDest) {
         return procs.map(p => ({
             ...p,
             autoDispatch: p.Auto_Dispatch ? JSON.parse(p.Auto_Dispatch) : null,
+            proximoDisparo: p.Proximo_Disparo || '',
             destinatarios: dests.filter(d => String(d.Processo_ID) === String(p.ID))
         }));
     }
@@ -726,27 +735,36 @@ function processarAgendados() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(ABA.processos);
     const processados = sheetToObjects(sheet);
-    const agora = new Date();
+    const tz = Session.getScriptTimeZone();
+    const agoraStr = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    const agora = new Date(agoraStr);
     let cont = 0;
 
     processados.forEach(p => {
-        if (p.Status === 'pending' && p.Agendado_Para) {
-            const dataAg = new Date(p.Agendado_Para);
+        if (p.Status === 'pending' && p.Proximo_Disparo) {
+            const dataAg = new Date(p.Proximo_Disparo);
             if (dataAg <= agora) {
                 enviarProcessoCompleto(p.ID);
                 const row = findRow(sheet, p.ID);
                 if (row) {
-                    sheet.getRange(row, 5).setValue('active');
-                    // Inicializa lastSent para o Auto-Dispatch começar a contar a partir deste momento
+                    sheet.getRange(row, 5).setValue('active'); // Status
+                    sheet.getRange(row, 11).setValue(agoraStr); // Atualizado_Em
+
+                    // Calcula próximo disparo se auto-dispatch estiver ativo
+                    let proximo = '';
                     if (p.Auto_Dispatch) {
                         try {
                             const ad = JSON.parse(p.Auto_Dispatch);
                             if (ad.enabled) {
-                                ad.lastSent = Utilities.formatDate(agora, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+                                const intervalMs = (Number(ad.days) || 2) * 24 * 60 * 60 * 1000;
+                                const nextDate = new Date(agora.getTime() + intervalMs);
+                                proximo = Utilities.formatDate(nextDate, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+                                ad.lastSent = agoraStr;
                                 sheet.getRange(row, 13).setValue(JSON.stringify(ad));
                             }
-                        } catch (e) { }
+                        } catch (e) { console.error('Erro ao processar ad em agendados:', e); }
                     }
+                    sheet.getRange(row, 14).setValue(proximo); // Coluna 14: Proximo_Disparo
                 }
                 cont++;
             }
@@ -759,18 +777,18 @@ function processarAutoReenvio() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(ABA.processos);
     const processados = sheetToObjects(sheet);
-    const agora = new Date();
+    const tz = Session.getScriptTimeZone();
+    const agoraStr = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    const agora = new Date(agoraStr);
     let cont = 0;
 
     processados.forEach(p => {
-        if (p.Status === 'active' && p.Auto_Dispatch) {
-            const ad = JSON.parse(p.Auto_Dispatch);
-            if (!ad.enabled) return;
+        if (p.Status === 'active' && p.Proximo_Disparo) {
+            const dataProx = new Date(p.Proximo_Disparo);
+            if (dataProx <= agora && p.Auto_Dispatch) {
+                const ad = JSON.parse(p.Auto_Dispatch);
+                if (!ad.enabled) return;
 
-            const intervalMs = (Number(ad.days) || 2) * 24 * 60 * 60 * 1000;
-            const lastSent = ad.lastSent ? new Date(ad.lastSent) : new Date(p.Criado_Em);
-
-            if (agora.getTime() - lastSent.getTime() >= (intervalMs - 60000) && ad.sentCount < ad.maxResends) {
                 // Seleciona alvos
                 const destSheet = ss.getSheetByName(ABA.destinatarios);
                 const dests = sheetToObjects(destSheet).filter(d => String(d.Processo_ID) === String(p.ID));
@@ -780,7 +798,8 @@ function processarAutoReenvio() {
                     return true;
                 });
 
-                if (targets.length > 0) {
+                const row = findRow(sheet, p.ID);
+                if (targets.length > 0 && ad.sentCount < ad.maxResends) {
                     targets.forEach(t => {
                         enviarEmail({
                             para: t.Email_Fornecedor,
@@ -790,20 +809,36 @@ function processarAutoReenvio() {
                             processo_id: p.ID,
                             fornecedor_id: t.Fornecedor_ID,
                             nome_fornecedor: t.Nome_Fornecedor,
+                            tipo_material: t.Tipo_Material, // Adicionado para consistência
                             nota: 'Auto-reenvio #' + (ad.sentCount + 1)
                         });
                     });
 
                     ad.sentCount++;
-                    ad.lastSent = Utilities.formatDate(agora, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-                    const row = findRow(sheet, p.ID);
-                    if (row) sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                    ad.lastSent = agoraStr;
+
+                    let novoProximo = '';
+                    if (ad.sentCount < ad.maxResends) {
+                        const intervalMs = (Number(ad.days) || 2) * 24 * 60 * 60 * 1000;
+                        const nextDate = new Date(agora.getTime() + intervalMs);
+                        novoProximo = Utilities.formatDate(nextDate, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+                    } else {
+                        ad.enabled = false;
+                    }
+
+                    if (row) {
+                        sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                        sheet.getRange(row, 14).setValue(novoProximo);
+                        sheet.getRange(row, 11).setValue(agoraStr);
+                    }
                     cont++;
                 } else {
-                    // Todos responderam ou não há mais o que fazer
+                    // Sem alvos ou limite atingido
                     ad.enabled = false;
-                    const row = findRow(sheet, p.ID);
-                    if (row) sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                    if (row) {
+                        sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                        sheet.getRange(row, 14).setValue('');
+                    }
                 }
             }
         }

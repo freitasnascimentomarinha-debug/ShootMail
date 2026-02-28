@@ -3092,7 +3092,8 @@
               id: p.ID, subject: p.Assunto, body: p.Corpo_Email || p.Corpo, createdAt: p.Criado_Em, status: p.Status, Observacoes: p.Observacoes || '',
               totalDest: p.Total_Destinatarios, totalDisp: p.Total_Disparos, totalAbr: p.Total_Abriram || p.Total_Aberturas, totalResp: p.Total_Responderam || p.Total_Respostas,
               recipients: remoteRecs.length > 0 ? remoteRecs : (ex?.recipients || []),
-              autoDispatch: p.autoDispatch || ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null }
+              autoDispatch: p.autoDispatch || ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null },
+              proximoDisparo: p.proximoDisparo || ex?.proximoDisparo || ''
             };
           });
 
@@ -3137,9 +3138,17 @@
         const totalN = p.recipients?.length || Number(p.totalDest) || 0;
         const types = [...new Set((p.recipients || []).map(r => r.type))].filter(Boolean);
         const sc = { active: 'tb', replied: 'tg', pending: 'ty', done: 'tn' }[p.status] || 'tn';
+
+        // Info de próximo disparo
+        let nextInfo = '';
+        if (p.proximoDisparo) {
+          const isPending = p.status === 'pending';
+          nextInfo = '<span class="proc-meta-item" style="color:var(--a4);font-weight:600">' + (isPending ? '⏳ Envio: ' : '🔁 Próximo: ') + fmtDT(p.proximoDisparo) + '</span>';
+        }
+
         const div = document.createElement('div');
         div.className = 'proc-card fu';
-        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">🔁 ' + totalD + 'x</span>' + types.slice(0, 2).map(t => '<span class="tag ' + tcls(t) + '" style="font-size:9.5px">' + esc(t) + '</span>').join('') + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
+        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">🔁 ' + totalD + 'x</span>' + nextInfo + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
         div.addEventListener('click', () => openProcPanel(p.id));
         el.appendChild(div);
       });
@@ -3195,8 +3204,16 @@
       {
         const adBar = document.createElement('div');
         adBar.style.cssText = 'width:100%;padding:8px 10px;border-radius:7px;font-size:11.5px;display:flex;align-items:center;gap:10px;margin-bottom:4px;' + (ad.enabled ? 'background:rgba(77,255,195,.07);border:1px solid rgba(77,255,195,.2);' : 'background:rgba(255,255,255,.04);border:1px solid var(--bd);');
-        const nextD = (ad.enabled && ad.lastSent && ad.sentCount < ad.maxResends && proc.status === 'active') ? new Date(new Date(ad.lastSent).getTime() + (ad.days * 24 * 60 * 60 * 1000)) : null;
-        adBar.innerHTML = '<span style="flex:1">' + (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados' + (ad.lastSent ? ' · último: ' + fmtDT(ad.lastSent) : '') + (nextD ? ' · <span style="color:var(--a4);font-weight:600">próximo: ' + fmtDT(nextD) + '</span>' : '') + '</span>';
+
+        const proximo = proc.proximoDisparo;
+        const isPending = proc.status === 'pending';
+
+        let infoStr = (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados';
+        if (proximo) {
+          infoStr += ' · <span style="color:var(--a4);font-weight:600">' + (isPending ? '📅 Envio agendado: ' : '⏱ Próximo: ') + fmtDT(proximo) + '</span>';
+        }
+
+        adBar.innerHTML = '<span style="flex:1">' + infoStr + '</span>';
         const togBtn = document.createElement('button');
         togBtn.className = 'btn btn-xs ' + (ad.enabled ? 'btn-ghost' : 'btn-green');
         togBtn.style.cssText = 'font-size:11px;padding:3px 10px;' + (ad.enabled ? 'color:var(--a1)' : 'color:var(--a3);border-color:var(--a3)');
