@@ -3135,16 +3135,23 @@
         const types = [...new Set((p.recipients || []).map(r => r.type))].filter(Boolean);
         const sc = { active: 'tb', replied: 'tg', pending: 'ty', done: 'tn' }[p.status] || 'tn';
 
-        // Info de próximo disparo
+        // Info de próximo disparo / auto-dispatch
         let nextInfo = '';
         if (p.proximoDisparo) {
           const isPending = p.status === 'pending';
-          nextInfo = '<span class="proc-meta-item" style="color:var(--a4);font-weight:600">' + (isPending ? '⏳ Envio: ' : '🔁 Próximo: ') + fmtDT(p.proximoDisparo) + '</span>';
+          nextInfo = '<span class="proc-meta-item" style="color:var(--a4);font-weight:600">' + (isPending ? '⏳ Envio: ' : '⏱ Próximo: ') + fmtDT(p.proximoDisparo) + '</span>';
+        }
+
+        let autoInfo = '';
+        if (p.autoDispatch?.enabled) {
+          const ad = p.autoDispatch;
+          const stopLbl = { reply: 'até resp.', none: 'sem parar', limit: 'limite' }[ad.stopOn] || ad.stopOn;
+          autoInfo = '<span class="proc-meta-item" style="color:var(--a2);font-weight:600">🔁 Re-envios: ' + ad.sentCount + '/' + ad.maxResends + ' (' + stopLbl + ')</span>';
         }
 
         const div = document.createElement('div');
         div.className = 'proc-card fu';
-        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">🔁 ' + totalD + 'x</span>' + nextInfo + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
+        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">📨 Disp: ' + totalD + '</span>' + autoInfo + nextInfo + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
         div.addEventListener('click', () => openProcPanel(p.id));
         el.appendChild(div);
       });
@@ -3217,7 +3224,8 @@
         const proximo = proc.proximoDisparo;
         const isPending = proc.status === 'pending';
 
-        let infoStr = (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados';
+        const stopLbl = { reply: 'fornecedor responder', none: 'não parar automaticamente', limit: 'atingir limite' }[ad.stopOn] || ad.stopOn;
+        let infoStr = (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · <b>re-envios: ' + ad.sentCount + '/' + ad.maxResends + '</b> · Para: <b>' + stopLbl + '</b>';
         if (proximo) {
           infoStr += ' · <span style="color:var(--a4);font-weight:600">' + (isPending ? '📅 Envio agendado: ' : '⏱ Próximo: ') + fmtDT(proximo) + '</span>';
         }
