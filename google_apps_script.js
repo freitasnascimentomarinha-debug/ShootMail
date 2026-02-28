@@ -310,7 +310,8 @@ function salvarProcesso(d) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const procSheet = getSheet(ABA.processos);
     const destSheet = getSheet(ABA.destinatarios);
-    const now = new Date().toISOString();
+    const tz = Session.getScriptTimeZone();
+    const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     const id = d.id || nextId(procSheet);
 
     procSheet.appendRow([
@@ -378,7 +379,8 @@ function salvarObsProcesso(pid, obs) {
 //  EMAIL
 // ══════════════════════════════════════════════════════════════════
 function enviarEmail(d) {
-    const now = new Date().toISOString();
+    const tz = Session.getScriptTimeZone();
+    const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     const nome = d.nome_remetente || 'ShootMail';
     let statusEnvio = 'enviado';
     let erro = '';
@@ -753,10 +755,10 @@ function processarAutoReenvio() {
             const ad = JSON.parse(p.Auto_Dispatch);
             if (!ad.enabled) return;
 
-            const intervalMs = (ad.days || 2) * 24 * 60 * 60 * 1000;
+            const intervalMs = (Number(ad.days) || 2) * 24 * 60 * 60 * 1000;
             const lastSent = ad.lastSent ? new Date(ad.lastSent) : new Date(p.Criado_Em);
 
-            if (agora.getTime() - lastSent.getTime() >= intervalMs && ad.sentCount < ad.maxResends) {
+            if (agora.getTime() - lastSent.getTime() >= (intervalMs - 60000) && ad.sentCount < ad.maxResends) {
                 // Seleciona alvos
                 const destSheet = ss.getSheetByName(ABA.destinatarios);
                 const dests = sheetToObjects(destSheet).filter(d => String(d.Processo_ID) === String(p.ID));
@@ -781,7 +783,7 @@ function processarAutoReenvio() {
                     });
 
                     ad.sentCount++;
-                    ad.lastSent = agora.toISOString();
+                    ad.lastSent = Utilities.formatDate(agora, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
                     const row = findRow(sheet, p.ID);
                     if (row) sheet.getRange(row, 13).setValue(JSON.stringify(ad));
                     cont++;
@@ -1086,5 +1088,6 @@ function atualizarContadoresProcesso(procId) {
     procSheet.getRange(procRow, 7).setValue(totalDisp);
     procSheet.getRange(procRow, 8).setValue(totalAbriu);
     procSheet.getRange(procRow, 9).setValue(totalResp);
-    procSheet.getRange(procRow, 11).setValue(new Date().toISOString());
+    const tz = Session.getScriptTimeZone();
+    procSheet.getRange(procRow, 11).setValue(Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
 }

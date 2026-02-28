@@ -2542,16 +2542,6 @@
     function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
 
-    async function loadTemplates(silent = false) {
-      if (!CFG.apiUrl) return;
-      const data = await api('listar_modelos', {});
-      if (data && Array.isArray(data)) {
-        const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
-        S.templates = remote;
-        saveState(); renderTemplates(); updateBadges(); updateTplSelect();
-        if (!silent && remote.length) toast('📋 ' + remote.length + ' modelo(s) carregado(s)');
-      }
-    }
 
     function renderTemplates() {
       const list = document.getElementById('tpl-list');
@@ -3424,7 +3414,7 @@
 
     async function loadTemplates(silent = false) {
       if (!CFG.apiUrl) return;
-      const data = await api('listar_templates', {});
+      const data = await api('listar_modelos', {});
       if (data && Array.isArray(data)) {
         // Remote Google Sheets is the source of truth; replace local state
         const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
