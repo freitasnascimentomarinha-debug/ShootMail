@@ -3883,7 +3883,7 @@
     async function downloadGAS() {
       try {
         toast('⏳ Preparando download...');
-        const resp = await fetch('./google_apps_script.js');
+        const resp = await fetch('./google_apps_script.js?v=' + Date.now());
         if (!resp.ok) throw new Error('Não foi possível carregar o arquivo local');
         const code = await resp.text();
         const blob = new Blob([code], { type: 'text/javascript' });
