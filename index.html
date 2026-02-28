@@ -3017,6 +3017,15 @@
       }
 
       // ── LOCAL STATE ──
+      // Calcula proximoDisparo localmente para exibição imediata
+      let localProximoDisparo = '';
+      if (isPending) {
+        localProximoDisparo = new Date(sched).toISOString();
+      } else if (autoDispatch && autoDispatch.enabled) {
+        const intervalMs = (Number(autoDispatch.days) || 2) * 24 * 60 * 60 * 1000;
+        localProximoDisparo = new Date(Date.now() + intervalMs).toISOString();
+      }
+
       const proc = {
         id: pid,
         subject,
@@ -3024,7 +3033,7 @@
         createdAt: now,
         status: isPending ? 'pending' : 'active',
         autoDispatch,
-        proximoDisparo: isPending ? new Date(sched).toISOString() : (autoDispatch?.enabled ? proximo : ''),
+        proximoDisparo: localProximoDisparo,
         recipients: recips.map(s => ({
           sid: s.id,
           name: s.name,
@@ -3032,7 +3041,7 @@
           email2: s.email2 || '',
           email3: s.email3 || '',
           type: s.type,
-          dispatches: [], // Começa vazio, o histórico virá do processamento real
+          dispatches: isPending ? [] : [{ at: now, note: 'Envio inicial' }],
           opened: false,
           replied: false
         }))

@@ -301,6 +301,20 @@ function toggleStatusFornecedor(id) {
 // ══════════════════════════════════════════════════════════════════
 //  PROCESSOS
 // ══════════════════════════════════════════════════════════════════
+
+// Converte qualquer timestamp (UTC ou local) para o formato local do script
+function normalizarTimestamp(isoStr) {
+    if (!isoStr) return '';
+    try {
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return isoStr;
+        const tz = Session.getScriptTimeZone();
+        return Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    } catch (e) {
+        return isoStr;
+    }
+}
+
 function salvarProcesso(d) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const procSheet = getSheet(ABA.processos);
@@ -309,11 +323,21 @@ function salvarProcesso(d) {
     const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     const id = d.id || nextId(procSheet);
 
-    let proximo = d.agendado_para || '';
+    // Normaliza o agendado_para para o fuso local (frontend envia em UTC)
+    const agendadoPara = normalizarTimestamp(d.agendado_para);
+
+    // Calcula Proximo_Disparo
+    let proximo = agendadoPara; // Se agendado, próximo = horário agendado
     if (!proximo && d.status === 'active' && d.auto_dispatch && d.auto_dispatch.enabled) {
+        // Se envio imediato com auto-dispatch, próximo = agora + intervalo
         const intervalMs = (Number(d.auto_dispatch.days) || 2) * 24 * 60 * 60 * 1000;
         const nextDate = new Date(new Date().getTime() + intervalMs);
         proximo = Utilities.formatDate(nextDate, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    }
+
+    // Normaliza lastSent no auto_dispatch (vem em UTC do frontend)
+    if (d.auto_dispatch && d.auto_dispatch.lastSent) {
+        d.auto_dispatch.lastSent = normalizarTimestamp(d.auto_dispatch.lastSent);
     }
 
     procSheet.appendRow([
@@ -322,7 +346,7 @@ function salvarProcesso(d) {
         d.status || 'active',
         d.total_destinatarios || 0,
         0, 0, 0,
-        d.agendado_para || '',
+        agendadoPara,
         now,
         d.observacoes || '',
         d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : '',
@@ -877,13 +901,14 @@ function ativarTrigger() {
     desativarTrigger(); // remove anteriores
 
     // Um único gatilho mestre para TUDO (Respostas, Agendados e Auto-reenvio)
+    // Roda a cada 5 minutos para garantir disparos rápidos
     ScriptApp.newTrigger('processarFilaBackground')
         .timeBased()
-        .everyMinutes(15)
+        .everyMinutes(5)
         .create();
 
     salvarConfig('verificacao_ativa', 'true');
-    return { ok: true, msg: 'Verificação mestre ativada (a cada 15 min)' };
+    return { ok: true, msg: 'Verificação mestre ativada (a cada 5 min)' };
 }
 
 function desativarTrigger() {
