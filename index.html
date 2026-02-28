@@ -2139,9 +2139,9 @@
                 <div class="step">
                   <div class="step-num">5</div>
                   <div>
-                    <div class="step-title">Ativar verificação automática de respostas</div>
+                    <div class="step-title">Ativar Verificação Mestre Automática</div>
                     <div class="step-desc">Na planilha: menu <code>⚡ ShootMail → Ativar Verificação Automática</code> —
-                      verifica respostas a cada 15 min</div>
+                      Um único gatilho mestre que verifica Gmail, Disparos Agendados e Auto-reenvios a cada 5 min.</div>
                   </div>
                 </div>
               </div>
@@ -3504,16 +3504,17 @@
       const newState = !S.autoSync;
       toast(newState ? '🚀 Ativando sincronização automática...' : '🛑 Desativando...', newState ? 'var(--a3)' : 'var(--a1)');
 
-      const r = await api('alternar_auto_sync', { enabled: newState });
+      const action = newState ? 'ativar_auto_sync' : 'desativar_auto_sync';
+      const r = await api(action, {});
       if (r) {
         S.autoSync = newState;
         saveState();
         updateSettingsUI();
         if (S.autoSync) {
-          toast('✅ Verificação a cada 15 min ativada!');
+          toast('✅ Verificação Mestre (5 min) ativada no servidor!');
           _startAutoSyncLoop();
         } else {
-          toast('⏹ Verificação automática parada.');
+          toast('⏹ Verificação automática desativada.');
         }
       }
     }

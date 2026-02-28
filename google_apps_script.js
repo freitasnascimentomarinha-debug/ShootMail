@@ -197,7 +197,8 @@ function _processRequest(params) {
             case 'todas_respostas': result = todasRespostas(); break;
             case 'verificar_respostas': result = verificarRespostas(); break;
             case 'baixar_anexo': result = baixarAnexo(body.msgId, body.filename); break;
-            case 'ativar_auto_sync': result = ativarTrigger(); break;
+            case 'ativar_auto_sync':
+            case 'alternar_auto_sync': result = ativarTrigger(); break;
             case 'desativar_auto_sync': result = desativarTrigger(); break;
 
             // ── Config ──
@@ -911,7 +912,7 @@ function ativarTrigger() {
 
 function desativarTrigger() {
     const triggers = ScriptApp.getProjectTriggers();
-    const handlers = ['verificarRespostas', 'processarFilaBackground'];
+    const handlers = ['verificarRespostas', 'processarFilaBackground', 'processarAutoDispatch'];
     triggers.forEach(t => {
         if (handlers.includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
     });
