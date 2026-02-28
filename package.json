@@ -1,0 +1,12 @@
+{
+    "name": "shootmail",
+    "version": "1.0.0",
+    "description": "ShootMail — Automação de Cotações",
+    "main": "index.html",
+    "scripts": {
+        "dev": "npx serve ."
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
