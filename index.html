@@ -2979,61 +2979,45 @@
       if (!body) { toast('Digite o corpo do email!', 'var(--a1)'); return; }
       if (!recips.length) { toast('Selecione ao menos um fornecedor!', 'var(--a1)'); return; }
 
-      const isPending = !!sched;
-      if (isPending) {
+      // Se agendado, valida que o horário é no futuro
+      let agendadoPara = '';
+      if (sched) {
         const sDate = new Date(sched);
+        if (isNaN(sDate.getTime())) { toast('Data de agendamento inválida!', 'var(--a1)'); return; }
         if (sDate <= new Date()) { toast('O agendamento deve ser para uma data futura!', 'var(--a1)'); return; }
+        agendadoPara = sDate.toISOString();
       }
 
       S.isSending = true;
-      renderCompose(); // Update button state
+      renderCompose();
 
       const pid = Date.now();
       const now = new Date().toISOString();
 
-      // Read auto-dispatch settings
+      // Configurações de auto-dispatch
       const autoEnabled = document.getElementById('c-auto-enable')?.checked;
       const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
       const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
       const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
-      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
+      // lastSent vazio por enquanto — só é preenchido quando o servidor realmente envia
+      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: '' } : null;
 
-      // Se estiver conectado à API, salva o processo lá para garantir que os contadores funcionem
-      if (CFG.apiUrl) {
-        await api('salvar_processo', {
-          id: pid,
-          data: {
-            id: pid,
-            assunto: subject,
-            corpo: body,
-            status: isPending ? 'pending' : 'active',
-            total_destinatarios: recips.length,
-            agendado_para: isPending ? new Date(sched).toISOString() : '',
-            auto_dispatch: autoDispatch,
-            observacoes: '',
-            destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type }))
-          }
-        });
-      }
+      // ── Calcula quando o SERVIDOR deve disparar pela primeira vez ──
+      // Se agendado → usa a data agendada
+      // Se imediato → usa AGORA (trigger vai buscar tudo com Proximo_Disparo <= agora)
+      const proximoDisparoServidor = agendadoPara || now;
 
-      // ── LOCAL STATE ──
-      // Calcula proximoDisparo localmente para exibição imediata
-      let localProximoDisparo = '';
-      if (isPending) {
-        localProximoDisparo = new Date(sched).toISOString();
-      } else if (autoDispatch && autoDispatch.enabled) {
-        const intervalMs = (Number(autoDispatch.days) || 2) * 24 * 60 * 60 * 1000;
-        localProximoDisparo = new Date(Date.now() + intervalMs).toISOString();
-      }
-
+      // ── LOCAL STATE (UI imediata) ──
       const proc = {
         id: pid,
         subject,
         body,
         createdAt: now,
-        status: isPending ? 'pending' : 'active',
+        // SEMPRE pending — o servidor é quem muda para active ao REALMENTE enviar
+        status: 'pending',
         autoDispatch,
-        proximoDisparo: localProximoDisparo,
+        proximoDisparo: proximoDisparoServidor,
+        agendadoPara: agendadoPara,
         recipients: recips.map(s => ({
           sid: s.id,
           name: s.name,
@@ -3041,67 +3025,52 @@
           email2: s.email2 || '',
           email3: s.email3 || '',
           type: s.type,
-          dispatches: isPending ? [] : [{ at: now, note: 'Envio inicial' }],
+          dispatches: [], // Vazio — histórico real vem do servidor
           opened: false,
           replied: false
         }))
       };
       S.processes.push(proc);
-      if (!isPending) {
-        recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
-      }
       saveState(); updateBadges(); closeModal('modal-preview');
 
-      // Se for agendado, não enviamos os emails agora
-      if (isPending) {
-        toast('✅ Processo agendado com sucesso!');
-        S.isSending = false;
-        renderCompose();
-        goTab('processes');
-        return;
-      }
-
-      const atts = [];
-      if (_selectedFiles.length) {
-        toast('📎 Processando anexos...');
-        for (const f of _selectedFiles) {
-          try {
-            const data = await _fileToBase64(f);
-            atts.push({ name: f.name, type: f.type, data });
-          } catch (e) {
-            console.error('Erro no anexo:', f.name, e);
-          }
-        }
-      }
-
-      toast('🚀 Enviando emails...', 'var(--a5)');
+      // ── SALVA NO SERVIDOR VIA API ──
+      // O servidor vai disparar dentro de até 5 min (trigger automático)
       if (CFG.apiUrl) {
-        try {
-          for (const s of recips) {
-            const b = body.replace(/{nome}/g, s.name).replace(/{empresa}/g, s.name).replace(/{tipo}/g, s.type);
-            await api('enviar_email', {
-              data: {
-                para: s.email, para2: s.email2 || '', para3: s.email3 || '',
-                assunto: subject, corpo: b, nome_remetente: CFG.gmailName || 'ShootMail',
-                processo_id: pid, fornecedor_id: s.id, nome_fornecedor: s.name,
-                tipo_material: s.type, nota: 'Envio inicial',
-                anexos: atts
-              }
-            });
+        const r = await api('salvar_processo', {
+          id: pid,
+          data: {
+            id: pid,
+            assunto: subject,
+            corpo: body,
+            // SEMPRE pending — o servidor é o único que muda para active
+            status: 'pending',
+            total_destinatarios: recips.length,
+            agendado_para: agendadoPara,
+            // Proximo_Disparo = agora (imediato) ou data agendada
+            proximo_disparo_override: proximoDisparoServidor,
+            auto_dispatch: autoDispatch,
+            observacoes: '',
+            destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type }))
           }
-          _selectedFiles = []; updAttList(); // Limpa anexos após envio
-          toast('✅ Disparado para ' + recips.length + ' fornecedor(es)!' + (autoEnabled ? ' + auto-reenvio ativo 🔁' : ''));
-          if (autoEnabled) setTimeout(() => startAutoDispatch(pid), 100);
-        } catch (e) {
-          console.error('Erro no disparo:', e);
-          toast('Erro durante o envio. Verifique o console.', 'var(--a1)');
-        } finally {
-          S.isSending = false;
-          renderCompose();
+        });
+        if (r) {
+          if (agendadoPara) {
+            toast('✅ Processo agendado! O servidor enviará automaticamente no horário programado.', 'var(--a3)');
+          } else {
+            toast('✅ Processo criado! O servidor enviará em até 5 minutos. 🔁', 'var(--a3)');
+          }
+        } else {
+          toast('⚠️ Não foi possível salvar no servidor. Verifique a conexão e o Apps Script.', 'var(--a1)');
         }
+      } else {
+        toast('✅ Processo salvo localmente (sem conexão com servidor)', 'var(--a4)');
       }
+
+      S.isSending = false;
+      renderCompose();
       goTab('processes');
     }
+
 
     // ══ PROCESSES ══
     async function loadProcesses(silent = false) {

@@ -323,19 +323,21 @@ function salvarProcesso(d) {
     const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     const id = d.id || nextId(procSheet);
 
-    // Normaliza o agendado_para para o fuso local (frontend envia em UTC)
+    // Normaliza timestamps (frontend envia em UTC, servidor armazena em local)
     const agendadoPara = normalizarTimestamp(d.agendado_para);
 
-    // Calcula Proximo_Disparo
-    let proximo = agendadoPara; // Se agendado, próximo = horário agendado
-    if (!proximo && d.status === 'active' && d.auto_dispatch && d.auto_dispatch.enabled) {
-        // Se envio imediato com auto-dispatch, próximo = agora + intervalo
+    // Proximo_Disparo: usa override do frontend se existir, senão usa agendado_para
+    // Para envios imediatos: override = now (servidor dispara na próxima verificação)
+    // Para agendados: override = data agendada
+    let proximo = normalizarTimestamp(d.proximo_disparo_override) || agendadoPara;
+
+    // Se ainda não tem proximo e é active com auto-dispatch, calcula o próximo
+    if (!proximo && d.auto_dispatch && d.auto_dispatch.enabled) {
         const intervalMs = (Number(d.auto_dispatch.days) || 2) * 24 * 60 * 60 * 1000;
-        const nextDate = new Date(new Date().getTime() + intervalMs);
-        proximo = Utilities.formatDate(nextDate, tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+        proximo = Utilities.formatDate(new Date(new Date().getTime() + intervalMs), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     }
 
-    // Normaliza lastSent no auto_dispatch (vem em UTC do frontend)
+    // Normaliza lastSent no auto_dispatch
     if (d.auto_dispatch && d.auto_dispatch.lastSent) {
         d.auto_dispatch.lastSent = normalizarTimestamp(d.auto_dispatch.lastSent);
     }
@@ -343,7 +345,7 @@ function salvarProcesso(d) {
     procSheet.appendRow([
         id, d.assunto, d.corpo,
         now,
-        d.status || 'active',
+        d.status || 'pending',  // Padrao é pending — servidor troca para active ao enviar
         d.total_destinatarios || 0,
         0, 0, 0,
         agendadoPara,
@@ -366,19 +368,15 @@ function salvarProcesso(d) {
             false, // Abriu
             '',    // Abriu_Em
             false, // Respondeu
-            0      // Total_Disparos_Individual (Começa em 0 para o primeiro envio somar 1)
+            0      // Total_Disparos_Individual
         ]);
         destSheet.getRange(destSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
-    }
-
-    if (d.agendado_para) {
-        // Se for agendado, não contabilizamos o primeiro disparo ainda (será feito pelo processarAgendados)
-        atualizarContadoresProcesso(id);
     }
 
     SpreadsheetApp.flush();
     return { id };
 }
+
 
 function listarProcessos(incluirDest) {
     const sheet = getSheet(ABA.processos);
