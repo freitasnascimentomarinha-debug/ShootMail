@@ -2188,12 +2188,112 @@
               </div>
             </div>
 
+            <div class="settings-section full" style="border: 1px solid var(--a3); background: rgba(77,255,195,0.03);">
+              <div class="settings-hd">
+                <span class="settings-ico">🛠️</span>
+                <div>
+                  <div class="settings-lbl" style="color:var(--a3)">Kit do Desenvolvedor / Setup Avançado</div>
+                  <div class="settings-sub">Recursos para você configurar sua própria instância do ShootMail</div>
+                </div>
+              </div>
+              <div class="settings-bd" style="display:flex; gap:15px; flex-wrap:wrap;">
+                <button class="btn btn-green" onclick="downloadGAS()"
+                  style="flex:1; min-width:200px; justify-content:center; padding:15px; font-size:14px; font-weight: 700;">
+                  📥 Baixar Script Backend (JS)
+                </button>
+                <button class="btn btn-blue" onclick="openSetupGuide()"
+                  style="flex:1; min-width:200px; justify-content:center; padding:15px; font-size:14px; font-weight: 700;">
+                  📖 Manual de Configuração (PDF/Digital)
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
       </div><!-- /content -->
     </main>
   </div><!-- /shell -->
+
+  <!-- ══ SETUP GUIDE MODAL ══ -->
+  <div class="overlay" id="modal-guide">
+    <div class="modal" style="max-width: 750px;">
+      <div class="modal-hd">
+        <div class="modal-title">📖 Guia de Configuração ShootMail v2026</div>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-guide')">✕</button>
+      </div>
+      <div class="modal-bd" style="padding: 30px; line-height: 1.6;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <img src="shootmail_architecture_diagram_1772313800866.png"
+            style="max-width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--bd);">
+          <div
+            style="margin-top: 15px; font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 800; color: var(--a1);">
+            O MOTOR BACKEND É A SUA PLANILHA</div>
+        </div>
+
+        <h3 style="color: var(--a3); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-bottom: 15px;">O
+          que é o ShootMail?</h3>
+        <p style="font-size: 14px; color: var(--t2); margin-bottom: 20px;">
+          O <strong>ShootMail</strong> é um atirador de elite para e-mails de cotação. Ele foi projetado para ser 100%
+          autônomo, utilizando a infraestrutura gratuita do Google.
+          Diferente de sistemas complexos, o ShootMail usa o <strong>Google Sheets como seu motor de banco de dados e
+            lógica</strong>. Isso significa que você é dono total dos seus dados e do seu "servidor".
+        </p>
+
+        <h3 style="color: var(--a4); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-bottom: 15px;">Como
+          Funciona o Fluxo?</h3>
+        <ul
+          style="list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+          <li style="background: var(--bg3); padding: 12px; border-radius: 8px; border: 1px solid var(--bd);">
+            <strong style="color: var(--a1); display: block; margin-bottom: 5px;">1. Interface Web</strong>
+            Onde você compõe e-mails e visualiza o status.
+          </li>
+          <li style="background: var(--bg3); padding: 12px; border-radius: 8px; border: 1px solid var(--bd);">
+            <strong style="color: var(--a3); display: block; margin-bottom: 5px;">2. Apps Script</strong>
+            A ponte inteligente que processa as requisições.
+          </li>
+          <li style="background: var(--bg3); padding: 12px; border-radius: 8px; border: 1px solid var(--bd);">
+            <strong style="color: var(--a4); display: block; margin-bottom: 5px;">3. Google Sheets</strong>
+            Onde tudo é gravado: fornecedores, processos e histórico.
+          </li>
+          <li style="background: var(--bg3); padding: 12px; border-radius: 8px; border: 1px solid var(--bd);">
+            <strong style="color: var(--a5); display: block; margin-bottom: 5px;">4. Gmail API</strong>
+            O disparo real dos e-mails e captura de respostas.
+          </li>
+        </ul>
+
+        <h3 style="color: var(--a3); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-bottom: 15px;">
+          Passo a Passo Para Implantar</h3>
+        <div style="counter-reset: step; font-size: 13.5px;">
+          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</span>
+            <strong>Crie sua Planilha:</strong> Vá em <a href="https://sheets.new" target="_blank"
+              style="color:var(--a3)">sheets.new</a> e copie o ID da URL.
+          </div>
+          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</span>
+            <strong>Instale o Código:</strong> Baixe o script nesta página, vá em Extensões -> Apps Script e cole o
+            código.
+          </div>
+          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</span>
+            <strong>Publique como Web App:</strong> Clique em Implantar -> Nova Implantação -> App da Web. Acesso:
+            Qualquer pessoa.
+          </div>
+        </div>
+
+        <div
+          style="margin-top: 30px; padding: 15px; background: rgba(255,195,0,0.1); border: 1px solid var(--a4); border-radius: 10px; text-align: center;">
+          <p style="font-weight: 700; color: var(--a4); margin-bottom: 5px;">DICA PRO: Use Ctrl + P nesta tela agora
+            mesmo para salvar este guia como PDF!</p>
+          <button class="btn btn-amber btn-sm" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ══ DETAIL PANEL ══ -->
   <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
@@ -3793,7 +3893,35 @@
     }
     function statusLbl(s) { return { active: 'Em andamento', replied: 'Com respostas', pending: 'Agendado', done: 'Concluído' }[s] || s || '—'; }
     function tcls(t) { return { Metal: 'tb', Plástico: 'to', Madeira: 'ty', Tecido: 'tr', Eletrônico: 'tg', Químico: 'tn', Embalagem: 'tn', Outro: 'tn' }[t] || 'tn'; }
-    function updateBadges() { document.getElementById('nb-sup').textContent = S.suppliers.filter(s => s.status === 'active').length; document.getElementById('nb-tpl').textContent = S.templates.length; document.getElementById('nb-proc').textContent = S.processes.length; document.getElementById('nb-rep').textContent = S.replies.length; }
+    // ══ SETUP RESOURCES ══
+    async function downloadGAS() {
+      try {
+        toast('⏳ Preparando download...');
+        const resp = await fetch('./google_apps_script.js');
+        if (!resp.ok) throw new Error('Não foi possível carregar o arquivo local');
+        const code = await resp.text();
+        const blob = new Blob([code], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'google_apps_script.js';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast('✅ Download concluído!');
+      } catch (e) {
+        console.error(e);
+        toast('❌ Erro ao baixar arquivo. Tente copiar do repositório.', 'var(--a1)');
+      }
+    }
+
+    function openSetupGuide() {
+      const modal = document.getElementById('modal-guide');
+      if (modal) modal.classList.add('on');
+    }
+
+    updateBadges();
 
     // ══ INIT ══
     document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); }));
