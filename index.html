@@ -2424,9 +2424,15 @@
           { sid: 3, name: 'MadeiraMix', email: 'contato@madeiramix.com', type: 'Madeira', dispatches: [{ at: new Date(Date.now() - 86400000 * 5).toISOString(), note: 'Envio inicial' }], opened: false, replied: false },
         ]
       }];
-      link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
-    }];
-    saveState();
+      S.replies = [{
+        id: 1, procId: 1, sid: 1,
+        supplierName: 'Aço Brasil Ltda', supplierEmail: 'comercial@acobrasil.com',
+        procSubject: 'Cotação Q1 2025',
+        preview: 'Prezados, segue nossa proposta. Podemos atender com prazo de 15 dias úteis e condições especiais.',
+        repliedAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+        link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
+      }];
+      saveState();
     }
 
     // ══ API ══
@@ -2523,7 +2529,6 @@
       if (t === 'processes') loadProcesses();
       if (t === 'replies') loadReplies();
       if (t === 'settings') renderSettings();
-    }
     }
 
     // ══ TOAST ══
@@ -3013,9 +3018,10 @@
             corpo: body,
             status: isPending ? 'pending' : 'active',
             total_destinatarios: recips.length,
-            agendado_para: sched || '',
+            agendado_para: isPending ? new Date(sched).toISOString() : '',
             auto_dispatch: autoDispatch,
-            destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type })) // PASSANDO EM LOTE
+            observacoes: '',
+            destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type }))
           }
         });
       }
@@ -3093,10 +3099,10 @@
             }));
 
             return {
-              id: p.ID, subject: p.Assunto, body: p.Corpo_Email || p.Corpo, createdAt: p.Criado_Em, status: p.Status, Observacoes: p.Observacoes || p.obs || '',
+              id: p.ID, subject: p.Assunto, body: p.Corpo_Email || p.Corpo, createdAt: p.Criado_Em, status: p.Status, Observacoes: p.Observacoes || '',
               totalDest: p.Total_Destinatarios, totalDisp: p.Total_Disparos, totalAbr: p.Total_Abriram || p.Total_Aberturas, totalResp: p.Total_Responderam || p.Total_Respostas,
               recipients: remoteRecs.length > 0 ? remoteRecs : (ex?.recipients || []),
-              autoDispatch: ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null }
+              autoDispatch: p.autoDispatch || ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null }
             };
           });
 

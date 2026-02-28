@@ -30,7 +30,7 @@ function setupPlanilha() {
         ],
         [ABA.processos]: [
             'ID', 'Assunto', 'Corpo_Email', 'Criado_Em', 'Status', 'Total_Destinatarios',
-            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes'
+            'Total_Disparos', 'Total_Abriram', 'Total_Responderam', 'Agendado_Para', 'Atualizado_Em', 'Observacoes', 'Auto_Dispatch'
         ],
         [ABA.destinatarios]: [
             'ID', 'Processo_ID', 'Fornecedor_ID', 'Nome_Fornecedor', 'Email_Fornecedor',
@@ -321,6 +321,7 @@ function salvarProcesso(d) {
         0, 0, 0,
         d.agendado_para || '',
         now,
+        d.observacoes || '',
         d.auto_dispatch ? JSON.stringify(d.auto_dispatch) : ''
     ]);
 
@@ -709,9 +710,14 @@ function deletarModelo(id) {
 // ══════════════════════════════════════════════════════════════════
 
 function processarFilaBackground() {
+    // 1. Verifica novas respostas no Gmail
+    const resR = verificarRespostas();
+    // 2. Processa emails agendados (pending -> active)
     const resH = processarAgendados();
+    // 3. Processa auto-reenvios baseados em frequência
     const resA = processarAutoReenvio();
-    return { agendados: resH, auto_reenvio: resA };
+
+    return { respostas: resR, agendados: resH, auto_reenvio: resA };
 }
 
 function processarAgendados() {
@@ -820,21 +826,15 @@ function enviarProcessoCompleto(procId) {
 // ══════════════════════════════════════════════════════════════════
 function ativarTrigger() {
     desativarTrigger(); // remove anteriores
-    // Trigger de respostas (Gmail)
-    ScriptApp.newTrigger('verificarRespostas')
+
+    // Um único gatilho mestre para TUDO (Respostas, Agendados e Auto-reenvio)
+    ScriptApp.newTrigger('processarFilaBackground')
         .timeBased()
         .everyMinutes(15)
         .create();
 
-    // Trigger de fila (Agendados e Auto-reenvio)
-    // Agregamos o processamento para usar a função mais completa
-    ScriptApp.newTrigger('processarFilaBackground')
-        .timeBased()
-        .everyHours(1)
-        .create();
-
     salvarConfig('verificacao_ativa', 'true');
-    return { ok: true, msg: 'Verificação automática ativada (15 min / 1 h)' };
+    return { ok: true, msg: 'Verificação mestre ativada (a cada 15 min)' };
 }
 
 function desativarTrigger() {
