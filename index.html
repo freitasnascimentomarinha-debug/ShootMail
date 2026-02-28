@@ -2424,19 +2424,12 @@
           { sid: 3, name: 'MadeiraMix', email: 'contato@madeiramix.com', type: 'Madeira', dispatches: [{ at: new Date(Date.now() - 86400000 * 5).toISOString(), note: 'Envio inicial' }], opened: false, replied: false },
         ]
       }];
-      S.replies = [{
-        id: 1, procId: 1, sid: 1,
-        supplierName: 'Aço Brasil Ltda', supplierEmail: 'comercial@acobrasil.com',
-        procSubject: 'Cotação Q1 2025',
-        preview: 'Prezados, segue nossa proposta. Podemos atender com prazo de 15 dias úteis e condições especiais.',
-        repliedAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
-        link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
-      }];
-      saveState();
+      link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
+    }];
+    saveState();
     }
 
-    // ══ API — JSONP (funciona sem CORS mesmo em file://) ══
-    // ══ API — Híbrida (JSONP para leitura, POST para escrita/grandes dados) ══
+    // ══ API ══
     async function api(action, payload = {}) {
       if (!CFG.apiUrl) return null;
 
@@ -2531,6 +2524,7 @@
       if (t === 'replies') loadReplies();
       if (t === 'settings') renderSettings();
     }
+    }
 
     // ══ TOAST ══
     function toast(msg, color) { const t = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg; t.style.borderColor = color || 'var(--a3)'; t.style.color = color || 'var(--a3)'; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 3500); }
@@ -2543,13 +2537,15 @@
     function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
 
-    async function loadTemplates() {
-      if (CFG.apiUrl) {
-        const data = await api('listar_modelos', {});
-        if (data) S.templates = data.map(r => ({ id: r.ID, name: r.Nome, cat: r.Categoria, subject: r.Assunto, body: r.Corpo }));
-        saveState();
+    async function loadTemplates(silent = false) {
+      if (!CFG.apiUrl) return;
+      const data = await api('listar_modelos', {});
+      if (data && Array.isArray(data)) {
+        const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
+        S.templates = remote;
+        saveState(); renderTemplates(); updateBadges(); updateTplSelect();
+        if (!silent && remote.length) toast('📋 ' + remote.length + ' modelo(s) carregado(s)');
       }
-      renderTemplates();
     }
 
     function renderTemplates() {
@@ -2621,10 +2617,10 @@
       if (_editTplId === null) { toast('Selecione um modelo na lista para excluí-lo', 'var(--a1)'); return; }
       const tName = (S.templates.find(t => String(t.id) === String(_editTplId)) || {}).name || '';
       if (!confirm('Excluir o modelo "' + tName + '"?\nEsta ação não pode ser desfeita.')) return;
+      if (CFG.apiUrl) await api('deletar_modelo', { id: _editTplId });
       S.templates = S.templates.filter(t => String(t.id) !== String(_editTplId));
       saveState(); renderTemplates(); newTemplate(); updateBadges();
       toast('Modelo excluído', 'var(--a1)');
-      if (CFG.apiUrl) api('deletar_template', { id: deletedId });
     }
 
     async function saveTpl() {
@@ -2659,7 +2655,6 @@
       S.templates = S.templates.filter(t => String(t.id) !== String(id));
       if (String(_editTplId) === String(id)) newTemplate();
       saveState(); renderTemplates(); updateBadges(); updateTplSelect(); toast('Modelo removido', 'var(--a1)');
-      if (CFG.apiUrl) api('deletar_template', { id });
     }
 
     function useTemplate(id) {
@@ -2692,16 +2687,17 @@
       const cat = document.getElementById('stpl-cat').value;
       const data = { name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' };
 
+      let remoteId = null;
       if (CFG.apiUrl) {
-        await api('salvar_modelo', { data });
+        const r = await api('salvar_modelo', { data });
+        if (r) remoteId = r.id;
       }
 
-      const newId = S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1;
+      const newId = remoteId || (S.templates.length ? Math.max(...S.templates.map(t => Number(t.id) || 0)) + 1 : 1);
       S.templates.push({ id: newId, name, cat, subject: window._tplSaveSubject || '', body: window._tplSaveBody || '' });
       saveState(); updateBadges(); updateTplSelect();
       closeModal('modal-save-tpl');
       toast('✅ Modelo "' + name + '" salvo!');
-      if (CFG.apiUrl) api('salvar_template', { id: newId, name, cat, subject, body });
     }
 
     function saveCurrentAsTemplate() {

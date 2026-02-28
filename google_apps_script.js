@@ -827,6 +827,7 @@ function ativarTrigger() {
         .create();
 
     // Trigger de fila (Agendados e Auto-reenvio)
+    // Agregamos o processamento para usar a função mais completa
     ScriptApp.newTrigger('processarFilaBackground')
         .timeBased()
         .everyHours(1)
@@ -855,35 +856,7 @@ function getMyEmailSafely() {
         return cfg.gmailEmail || '';
     }
 }
-// ══════════════════════════════════════════════════════════════════
-//  TEMPLATES
-// ══════════════════════════════════════════════════════════════════
-function listarTemplates() {
-    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
-    return sheetToObjects(sheet);
-}
-
-function salvarTemplate(d) {
-    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
-    const id = d.id || nextId(sheet);
-    sheet.appendRow([id, d.name || '', d.cat || '', d.subject || '', d.body || '']);
-    return { id };
-}
-
-function atualizarTemplate(d) {
-    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
-    const row = findRow(sheet, d.id);
-    if (!row) throw new Error('Template não encontrado: ' + d.id);
-    sheet.getRange(row, 1, 1, 5).setValues([[d.id, d.name || '', d.cat || '', d.subject || '', d.body || '']]);
-    return { id: d.id };
-}
-
-function deletarTemplate(id) {
-    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
-    const row = findRow(sheet, id);
-    if (row) sheet.deleteRow(row);
-    return { ok: true };
-}
+// Redundant template functions removed (consolidated above)
 
 // ══════════════════════════════════════════════════════════════════
 //  AUTO-DISPATCH
@@ -978,15 +951,18 @@ function processarAgendamentos() {
 }
 
 function ativarTriggerAutoDispatch() {
-    // Remove triggers existentes para evitar duplicatas
-    ScriptApp.getProjectTriggers().forEach(t => {
-        if (t.getHandlerFunction() === 'processarAgendamentos') ScriptApp.deleteTrigger(t);
-    });
-    ScriptApp.newTrigger('processarAgendamentos')
+    desativarTriggerAutoDispatch();
+    ScriptApp.newTrigger('processarFilaBackground')
         .timeBased()
         .everyHours(1)
         .create();
     return { ok: true, msg: 'Trigger de auto-dispatch ativado (1 hora)' };
+}
+
+function desativarTriggerAutoDispatch() {
+    ScriptApp.getProjectTriggers().forEach(t => {
+        if (['processarAgendamentos', 'processarFilaBackground'].includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
+    });
 }
 
 // ══════════════════════════════════════════════════════════════════
