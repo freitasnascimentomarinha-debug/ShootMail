@@ -3133,7 +3133,7 @@
       procs.forEach(p => {
         const replied = p.recipients?.filter(r => r.replied).length || Number(p.totalResp) || 0;
         const opened = p.recipients?.filter(r => r.opened).length || Number(p.totalAbr) || 0;
-        const totalD = p.recipients?.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(p.totalDisp) || 0;
+        const totalD = p.recipients?.reduce((a, r) => a + (r.dispatches?.length || (p.status === 'pending' ? 0 : 1)), 0) || Number(p.totalDisp) || 0;
         const totalN = p.recipients?.length || Number(p.totalDest) || 0;
         const types = [...new Set((p.recipients || []).map(r => r.type))].filter(Boolean);
         const sc = { active: 'tb', replied: 'tg', pending: 'ty', done: 'tn' }[p.status] || 'tn';
@@ -3161,10 +3161,15 @@
       recs.forEach(r => {
         const last = r.dispatches?.[r.dispatches.length - 1];
         const openInfo = r.opened ? '<span style="color:var(--a4);font-weight:500">Abriu em: ' + fmtDT(r.openedAt || r.Abriu_Em) + '</span>' : '<span style="color:var(--t3)">Ainda não abriu</span>';
-        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (r.dispatches?.length || 1) + 'x enviado · último: ' + (last ? fmtDT(last.at) : '—') + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
+        const dispCount = (r.dispatches?.length || (proc.status === 'pending' ? 0 : 1));
+        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + dispCount + 'x enviado · último: ' + (last ? fmtDT(last.at) : (dispCount > 0 ? fmtDT(proc.createdAt) : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
       });
       h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
-      let allD = []; recs.forEach(r => (r.dispatches || [{ at: proc.createdAt, note: 'Envio inicial' }]).forEach(d => allD.push({ ...d, rn: r.name }))); allD.sort((a, b) => new Date(a.at) - new Date(b.at));
+      let allD = []; recs.forEach(r => {
+        const baseDs = (r.dispatches?.length > 0) ? r.dispatches : (proc.status === 'pending' ? [] : [{ at: proc.createdAt, note: 'Envio inicial' }]);
+        baseDs.forEach(d => allD.push({ ...d, rn: r.name }));
+      });
+      allD.sort((a, b) => new Date(a.at) - new Date(b.at));
       allD.forEach((d, i) => { h += '<div class="tl-item"><div class="tl-num">' + (i + 1) + '</div><div style="flex:1"><div class="tl-date">' + fmtDT(d.at) + '</div><div class="tl-note">' + esc(d.note || 'Disparo') + ' · <span style="color:var(--t3)">' + esc(d.rn) + '</span></div></div></div>'; });
       h += '</div></div>';
       // Replies — store in map with string keys
@@ -3190,7 +3195,8 @@
       {
         const adBar = document.createElement('div');
         adBar.style.cssText = 'width:100%;padding:8px 10px;border-radius:7px;font-size:11.5px;display:flex;align-items:center;gap:10px;margin-bottom:4px;' + (ad.enabled ? 'background:rgba(77,255,195,.07);border:1px solid rgba(77,255,195,.2);' : 'background:rgba(255,255,255,.04);border:1px solid var(--bd);');
-        adBar.innerHTML = '<span style="flex:1">' + (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados' + (ad.lastSent ? ' · último: ' + fmtDT(ad.lastSent) : '') + '</span>';
+        const nextD = (ad.enabled && ad.lastSent && ad.sentCount < ad.maxResends && proc.status === 'active') ? new Date(new Date(ad.lastSent).getTime() + (ad.days * 24 * 60 * 60 * 1000)) : null;
+        adBar.innerHTML = '<span style="flex:1">' + (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados' + (ad.lastSent ? ' · último: ' + fmtDT(ad.lastSent) : '') + (nextD ? ' · <span style="color:var(--a4);font-weight:600">próximo: ' + fmtDT(nextD) + '</span>' : '') + '</span>';
         const togBtn = document.createElement('button');
         togBtn.className = 'btn btn-xs ' + (ad.enabled ? 'btn-ghost' : 'btn-green');
         togBtn.style.cssText = 'font-size:11px;padding:3px 10px;' + (ad.enabled ? 'color:var(--a1)' : 'color:var(--a3);border-color:var(--a3)');
@@ -3396,10 +3402,7 @@
     function saveSheetsCfg() { CFG.sheetId = document.getElementById('cfg-sid').value.trim(); CFG.apiUrl = document.getElementById('cfg-url').value.trim(); saveCfg(); toast('📊 Sheets salvo!'); updateSettingsUI(); if (CFG.apiUrl) testConn(); }
 
     async function ativarTriggerAutoDispatch() {
-      if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; }
-      toast('⏳ Ativando trigger...', 'var(--a4)');
-      const r = await api('ativar_auto_dispatch_trigger', {});
-      if (r) toast('✅ Trigger de auto-reenvio ativado no servidor!', 'var(--a3)');
+      toast('💡 Use "Ativar Verificação Automática" em Configurações');
     }
 
 
@@ -3634,38 +3637,9 @@
     // Timer registry for auto-dispatches
     window._autoTimers = window._autoTimers || {};
     function startAutoDispatch(procId, silent = false) {
-      const proc = S.processes.find(p => String(p.id) === String(procId));
-      if (!proc || !proc.autoDispatch || !proc.autoDispatch.enabled) return;
-      const days = Number(proc.autoDispatch.days) || 2;
-      const ms = days * 24 * 60 * 60 * 1000;
-      if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
-      window._autoTimers[procId] = setInterval(async () => {
-        const p = S.processes.find(x => String(x.id) === String(procId));
-        if (!p || !p.autoDispatch?.enabled) { clearInterval(window._autoTimers[procId]); return; }
-        const maxR = Number(p.autoDispatch.maxResends) || 3;
-        const sentCount = (p.autoDispatch.sentCount || 0) + 1;
-        if (sentCount > maxR) { stopAutoDispatch(procId, p, 'limite atingido'); return; }
-        const stop = p.autoDispatch.stopOn;
-        const targets = p.recipients?.filter(r => {
-          if (stop === 'reply' && r.replied) return false;
-          return true;
-        }) || [];
-        if (!targets.length) { stopAutoDispatch(procId, p, 'todos responderam'); return; }
-        const now = new Date().toISOString();
-        targets.forEach(r => { r.dispatches = r.dispatches || []; r.dispatches.push({ at: now, note: 'Auto-reenvio #' + sentCount }); });
-        p.autoDispatch.sentCount = sentCount;
-        p.autoDispatch.lastSent = now;
-        saveState();
-        toast('🔁 Auto-reenvio #' + sentCount + ' para "' + p.subject + '" (' + targets.length + ' dest.)');
-        if (CFG.apiUrl) { for (const r of targets) { const b = p.body.replace(/{nome}/g, r.name).replace(/{empresa}/g, r.name).replace(/{tipo}/g, r.type); await api('enviar_email', { data: { para: r.email, assunto: p.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Auto-reenvio #' + sentCount } }); } }
-      }, ms);
-      if (!silent) toast('⏱ Auto-reenvio ativado para "' + proc.subject + '" a cada ' + days + ' dia(s)');
-      // Persist auto-dispatch config to Google Sheets so server-side trigger can continue even with browser closed
-      if (CFG.apiUrl) {
-        api('configurar_auto_dispatch', { processoId: procId, intervaloMs: ms, maxReenvios: proc.autoDispatch.maxResends || 3 })
-          .then(r => { if (!r) console.warn('Auto-dispatch: falha ao salvar configuração no servidor para processo ' + procId); })
-          .catch(e => console.error('Auto-dispatch: erro ao salvar configuração no servidor:', e));
-      }
+      const p = S.processes.find(x => String(x.id) === String(procId));
+      if (!p || !p.autoDispatch?.enabled) return;
+      if (!silent) toast('⏱ Auto-reenvio configurado no servidor para "' + p.subject + '"');
     }
     function stopAutoDispatch(procId, proc, reason) {
       if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);

@@ -14,7 +14,6 @@ const ABA = {
     respostas: 'Respostas',
     config: 'Config',
     templates: 'Modelos',
-    autoDispatch: 'AutoDispatch',
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -46,7 +45,6 @@ function setupPlanilha() {
         ],
         [ABA.config]: ['Chave', 'Valor'],
         [ABA.templates]: ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo'],
-        [ABA.autoDispatch]: ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo'],
     };
 
     for (const [nome, headers] of Object.entries(abas)) {
@@ -221,10 +219,7 @@ function _processRequest(params) {
             // ── Background Jobs (Force) ──
             case 'processar_background': result = processarFilaBackground(); break;
 
-            // ── Auto-dispatch ──
-            case 'configurar_auto_dispatch': result = configurarAutoDispatch(body); break;
-            case 'ativar_auto_dispatch_trigger': result = ativarTriggerAutoDispatch(); break;
-
+            // case 'configurar_auto_dispatch': result = configurarAutoDispatch(body); break; // Removido
             default:
                 // Ping de status
                 return { ok: true, msg: 'ShootMail API ativa', action: action || 'ping' };
@@ -342,6 +337,11 @@ function salvarProcesso(d) {
             0      // Total_Disparos_Individual (Começa em 0 para o primeiro envio somar 1)
         ]);
         destSheet.getRange(destSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    if (d.agendado_para) {
+        // Se for agendado, não contabilizamos o primeiro disparo ainda (será feito pelo processarAgendados)
+        atualizarContadoresProcesso(id);
     }
 
     SpreadsheetApp.flush();
@@ -735,7 +735,19 @@ function processarAgendados() {
             if (dataAg <= agora) {
                 enviarProcessoCompleto(p.ID);
                 const row = findRow(sheet, p.ID);
-                if (row) sheet.getRange(row, 5).setValue('active');
+                if (row) {
+                    sheet.getRange(row, 5).setValue('active');
+                    // Inicializa lastSent para o Auto-Dispatch começar a contar a partir deste momento
+                    if (p.Auto_Dispatch) {
+                        try {
+                            const ad = JSON.parse(p.Auto_Dispatch);
+                            if (ad.enabled) {
+                                ad.lastSent = Utilities.formatDate(agora, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+                                sheet.getRange(row, 13).setValue(JSON.stringify(ad));
+                            }
+                        } catch (e) { }
+                    }
+                }
                 cont++;
             }
         }
@@ -858,114 +870,7 @@ function getMyEmailSafely() {
         return cfg.gmailEmail || '';
     }
 }
-// Redundant template functions removed (consolidated above)
-
-// ══════════════════════════════════════════════════════════════════
-//  AUTO-DISPATCH
-// ══════════════════════════════════════════════════════════════════
-function configurarAutoDispatch(d) {
-    const sheet = getOrCreateSheet(ABA.autoDispatch, ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo']);
-    const now = new Date();
-    const intervaloMs = Number(d.intervaloMs) || 0;
-    const proximoEnvio = new Date(now.getTime() + intervaloMs).toISOString();
-
-    // Atualiza se já existe, senão cria novo
-    if (sheet.getLastRow() > 1) {
-        const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
-        const idx = rows.findIndex(r => String(r[0]) === String(d.processoId));
-        if (idx !== -1) {
-            sheet.getRange(idx + 2, 1, 1, 6).setValues([[
-                d.processoId, intervaloMs, Number(d.maxReenvios) || 3, 0, proximoEnvio, true
-            ]]);
-            return { ok: true, updated: true };
-        }
-    }
-    sheet.appendRow([d.processoId, intervaloMs, Number(d.maxReenvios) || 3, 0, proximoEnvio, true]);
-    return { ok: true, created: true };
-}
-
-function processarAgendamentos() {
-    const adSheet = getOrCreateSheet(ABA.autoDispatch, ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo']);
-    if (adSheet.getLastRow() < 2) return { processados: 0 };
-
-    const now = new Date();
-    const rows = adSheet.getRange(2, 1, adSheet.getLastRow() - 1, 6).getValues();
-    let processados = 0;
-
-    rows.forEach((row, i) => {
-        const [processoId, intervaloMs, maxReenvios, reenviosFeitos, proximoEnvioStr, ativo] = row;
-        const isAtivo = ativo === true || ativo === 'TRUE';
-        if (!isAtivo) return;
-
-        const proximoEnvio = new Date(proximoEnvioStr);
-        if (isNaN(proximoEnvio) || proximoEnvio > now) return;
-
-        // Busca dados do processo
-        try {
-            const procSheet = getSheet(ABA.processos);
-            const destSheet = getSheet(ABA.destinatarios);
-            const procRow = findRow(procSheet, processoId);
-            if (!procRow) return;
-
-            const procs = sheetToObjects(procSheet);
-            const proc = procs.find(p => String(p.ID) === String(processoId));
-            if (!proc) return;
-
-            const dests = sheetToObjects(destSheet).filter(d => String(d.Processo_ID) === String(processoId));
-            const novoReenvios = Number(reenviosFeitos) + 1;
-
-            // Envia email para cada destinatário
-            dests.forEach(dest => {
-                try {
-                    const corpo = (proc.Corpo_Email || '')
-                        .replace(/{nome}/g, dest.Nome_Fornecedor || '')
-                        .replace(/{empresa}/g, dest.Nome_Fornecedor || '')
-                        .replace(/{tipo}/g, dest.Tipo_Material || '');
-                    enviarEmail({
-                        para: dest.Email_Fornecedor,
-                        assunto: proc.Assunto,
-                        corpo: corpo,
-                        nome_remetente: lerTodasConfigs().gmail_nome || 'ShootMail',
-                        processo_id: processoId,
-                        fornecedor_id: dest.Fornecedor_ID,
-                        nome_fornecedor: dest.Nome_Fornecedor,
-                        tipo_material: dest.Tipo_Material,
-                        nota: 'Auto-reenvio #' + novoReenvios
-                    });
-                } catch (e) {
-                    console.error('Erro ao enviar auto-dispatch para ' + dest.Email_Fornecedor + ': ' + e);
-                }
-            });
-
-            const rowIdx = i + 2;
-            const novoProximoEnvio = new Date(proximoEnvio.getTime() + Number(intervaloMs)).toISOString();
-            const novoAtivo = novoReenvios < Number(maxReenvios);
-            adSheet.getRange(rowIdx, 4).setValue(novoReenvios);
-            adSheet.getRange(rowIdx, 5).setValue(novoProximoEnvio);
-            adSheet.getRange(rowIdx, 6).setValue(novoAtivo);
-            processados++;
-        } catch (e) {
-            console.error('Erro no processamento do agendamento ' + processoId + ': ' + e);
-        }
-    });
-
-    return { processados };
-}
-
-function ativarTriggerAutoDispatch() {
-    desativarTriggerAutoDispatch();
-    ScriptApp.newTrigger('processarFilaBackground')
-        .timeBased()
-        .everyHours(1)
-        .create();
-    return { ok: true, msg: 'Trigger de auto-dispatch ativado (1 hora)' };
-}
-
-function desativarTriggerAutoDispatch() {
-    ScriptApp.getProjectTriggers().forEach(t => {
-        if (['processarAgendamentos', 'processarFilaBackground'].includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
-    });
-}
+// Redundant auto-dispatch legacy functions removed
 
 // ══════════════════════════════════════════════════════════════════
 //  HELPERS
