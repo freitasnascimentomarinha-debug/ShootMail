@@ -2542,16 +2542,6 @@
     function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
 
-    async function loadTemplates(silent = false) {
-      if (!CFG.apiUrl) return;
-      const data = await api('listar_modelos', {});
-      if (data && Array.isArray(data)) {
-        const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
-        S.templates = remote;
-        saveState(); renderTemplates(); updateBadges(); updateTplSelect();
-        if (!silent && remote.length) toast('📋 ' + remote.length + ' modelo(s) carregado(s)');
-      }
-    }
 
     function renderTemplates() {
       const list = document.getElementById('tpl-list');
@@ -2989,101 +2979,98 @@
       if (!body) { toast('Digite o corpo do email!', 'var(--a1)'); return; }
       if (!recips.length) { toast('Selecione ao menos um fornecedor!', 'var(--a1)'); return; }
 
-      const isPending = !!sched;
-      if (isPending) {
+      // Se agendado, valida que o horário é no futuro
+      let agendadoPara = '';
+      if (sched) {
         const sDate = new Date(sched);
+        if (isNaN(sDate.getTime())) { toast('Data de agendamento inválida!', 'var(--a1)'); return; }
         if (sDate <= new Date()) { toast('O agendamento deve ser para uma data futura!', 'var(--a1)'); return; }
+        agendadoPara = sDate.toISOString();
       }
 
       S.isSending = true;
-      renderCompose(); // Update button state
+      renderCompose();
 
       const pid = Date.now();
       const now = new Date().toISOString();
 
-      // Read auto-dispatch settings
+      // Configurações de auto-dispatch
       const autoEnabled = document.getElementById('c-auto-enable')?.checked;
       const autoDays = Number(document.getElementById('c-auto-days')?.value) || 2;
       const autoMax = Number(document.getElementById('c-auto-max')?.value) || 3;
       const autoStop = document.getElementById('c-auto-stop')?.value || 'reply';
-      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: now } : null;
+      // lastSent vazio por enquanto — só é preenchido quando o servidor realmente envia
+      const autoDispatch = autoEnabled ? { enabled: true, days: autoDays, maxResends: autoMax, stopOn: autoStop, sentCount: 0, lastSent: '' } : null;
 
-      // Se estiver conectado à API, salva o processo lá para garantir que os contadores funcionem
+      // ── Calcula quando o SERVIDOR deve disparar pela primeira vez ──
+      // Se agendado → usa a data agendada
+      // Se imediato → usa AGORA (trigger vai buscar tudo com Proximo_Disparo <= agora)
+      const proximoDisparoServidor = agendadoPara || now;
+
+      // ── LOCAL STATE (UI imediata) ──
+      const proc = {
+        id: pid,
+        subject,
+        body,
+        createdAt: now,
+        // SEMPRE pending — o servidor é quem muda para active ao REALMENTE enviar
+        status: 'pending',
+        autoDispatch,
+        proximoDisparo: proximoDisparoServidor,
+        agendadoPara: agendadoPara,
+        recipients: recips.map(s => ({
+          sid: s.id,
+          name: s.name,
+          email: s.email,
+          email2: s.email2 || '',
+          email3: s.email3 || '',
+          type: s.type,
+          dispatches: [], // Vazio — histórico real vem do servidor
+          opened: false,
+          replied: false
+        }))
+      };
+      S.processes.push(proc);
+      saveState(); updateBadges(); closeModal('modal-preview');
+
+      // ── SALVA NO SERVIDOR VIA API ──
+      // O servidor vai disparar dentro de até 5 min (trigger automático)
       if (CFG.apiUrl) {
-        await api('salvar_processo', {
+        const r = await api('salvar_processo', {
           id: pid,
           data: {
             id: pid,
             assunto: subject,
             corpo: body,
-            status: isPending ? 'pending' : 'active',
+            // SEMPRE pending — o servidor é o único que muda para active
+            status: 'pending',
             total_destinatarios: recips.length,
-            agendado_para: isPending ? new Date(sched).toISOString() : '',
+            agendado_para: agendadoPara,
+            // Proximo_Disparo = agora (imediato) ou data agendada
+            proximo_disparo_override: proximoDisparoServidor,
             auto_dispatch: autoDispatch,
             observacoes: '',
             destinatarios: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, type: s.type }))
           }
         });
-      }
-
-      // ── LOCAL STATE ──
-      const proc = { id: pid, subject, body, createdAt: now, status: isPending ? 'pending' : 'active', autoDispatch, recipients: recips.map(s => ({ sid: s.id, name: s.name, email: s.email, email2: s.email2 || '', email3: s.email3 || '', type: s.type, dispatches: isPending ? [] : [{ at: now, note: 'Envio inicial' }], opened: false, replied: false })) };
-      S.processes.push(proc);
-      if (!isPending) {
-        recips.forEach(s => { const i = S.suppliers.findIndex(x => String(x.id) === String(s.id)); if (i !== -1) S.suppliers[i].sent = (Number(S.suppliers[i].sent) || 0) + 1; });
-      }
-      saveState(); updateBadges(); closeModal('modal-preview');
-
-      // Se for agendado, não enviamos os emails agora
-      if (isPending) {
-        toast('✅ Processo agendado com sucesso!');
-        S.isSending = false;
-        renderCompose();
-        goTab('processes');
-        return;
-      }
-
-      const atts = [];
-      if (_selectedFiles.length) {
-        toast('📎 Processando anexos...');
-        for (const f of _selectedFiles) {
-          try {
-            const data = await _fileToBase64(f);
-            atts.push({ name: f.name, type: f.type, data });
-          } catch (e) {
-            console.error('Erro no anexo:', f.name, e);
+        if (r) {
+          if (agendadoPara) {
+            toast('✅ Processo agendado! O servidor enviará automaticamente no horário programado.', 'var(--a3)');
+          } else {
+            toast('✅ Processo criado! O servidor enviará em até 5 minutos. 🔁', 'var(--a3)');
           }
+        } else {
+          toast('⚠️ Não foi possível salvar no servidor. Verifique a conexão e o Apps Script.', 'var(--a1)');
         }
+      } else {
+        toast('✅ Processo salvo localmente (sem conexão com servidor)', 'var(--a4)');
       }
 
-      toast('🚀 Enviando emails...', 'var(--a5)');
-      if (CFG.apiUrl) {
-        try {
-          for (const s of recips) {
-            const b = body.replace(/{nome}/g, s.name).replace(/{empresa}/g, s.name).replace(/{tipo}/g, s.type);
-            await api('enviar_email', {
-              data: {
-                para: s.email, para2: s.email2 || '', para3: s.email3 || '',
-                assunto: subject, corpo: b, nome_remetente: CFG.gmailName || 'ShootMail',
-                processo_id: pid, fornecedor_id: s.id, nome_fornecedor: s.name,
-                tipo_material: s.type, nota: 'Envio inicial',
-                anexos: atts
-              }
-            });
-          }
-          _selectedFiles = []; updAttList(); // Limpa anexos após envio
-          toast('✅ Disparado para ' + recips.length + ' fornecedor(es)!' + (autoEnabled ? ' + auto-reenvio ativo 🔁' : ''));
-          if (autoEnabled) setTimeout(() => startAutoDispatch(pid), 100);
-        } catch (e) {
-          console.error('Erro no disparo:', e);
-          toast('Erro durante o envio. Verifique o console.', 'var(--a1)');
-        } finally {
-          S.isSending = false;
-          renderCompose();
-        }
-      }
+      S.isSending = false;
+      renderCompose();
       goTab('processes');
     }
+
 
     // ══ PROCESSES ══
     async function loadProcesses(silent = false) {
@@ -3102,7 +3089,8 @@
               id: p.ID, subject: p.Assunto, body: p.Corpo_Email || p.Corpo, createdAt: p.Criado_Em, status: p.Status, Observacoes: p.Observacoes || '',
               totalDest: p.Total_Destinatarios, totalDisp: p.Total_Disparos, totalAbr: p.Total_Abriram || p.Total_Aberturas, totalResp: p.Total_Responderam || p.Total_Respostas,
               recipients: remoteRecs.length > 0 ? remoteRecs : (ex?.recipients || []),
-              autoDispatch: p.autoDispatch || ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null }
+              autoDispatch: p.autoDispatch || ex?.autoDispatch || { enabled: false, days: 2, maxResends: 3, stopOn: 'reply', sentCount: 0, lastSent: null },
+              proximoDisparo: p.proximoDisparo || ex?.proximoDisparo || ''
             };
           });
 
@@ -3114,7 +3102,6 @@
             if (!merged.some(rp => String(rp.id) === String(lp.id))) {
               const age = Date.now() - new Date(lp.createdAt).getTime();
               const isRecentMatch = merged.some(rp => rp.subject === lp.subject && Math.abs(new Date(rp.createdAt) - new Date(lp.createdAt)) < 60000);
-              // Only keep if it's very recent or matches a recent remote item (sync hedge)
               if (!isRecentMatch && age < tenMin) merged.push(lp);
             }
           });
@@ -3143,13 +3130,28 @@
       procs.forEach(p => {
         const replied = p.recipients?.filter(r => r.replied).length || Number(p.totalResp) || 0;
         const opened = p.recipients?.filter(r => r.opened).length || Number(p.totalAbr) || 0;
-        const totalD = p.recipients?.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(p.totalDisp) || 0;
+        const totalD = p.recipients?.reduce((a, r) => a + (r.dispatches?.length || (p.status === 'pending' ? 0 : 1)), 0) || Number(p.totalDisp) || 0;
         const totalN = p.recipients?.length || Number(p.totalDest) || 0;
         const types = [...new Set((p.recipients || []).map(r => r.type))].filter(Boolean);
         const sc = { active: 'tb', replied: 'tg', pending: 'ty', done: 'tn' }[p.status] || 'tn';
+
+        // Info de próximo disparo / auto-dispatch
+        let nextInfo = '';
+        if (p.proximoDisparo) {
+          const isPending = p.status === 'pending';
+          nextInfo = '<span class="proc-meta-item" style="color:var(--a4);font-weight:600">' + (isPending ? '⏳ Envio: ' : '⏱ Próximo: ') + fmtDT(p.proximoDisparo) + '</span>';
+        }
+
+        let autoInfo = '';
+        if (p.autoDispatch?.enabled) {
+          const ad = p.autoDispatch;
+          const stopLbl = { reply: 'até resp.', none: 'sem parar', limit: 'limite' }[ad.stopOn] || ad.stopOn;
+          autoInfo = '<span class="proc-meta-item" style="color:var(--a2);font-weight:600">🔁 Re-envios: ' + ad.sentCount + '/' + ad.maxResends + ' (' + stopLbl + ')</span>';
+        }
+
         const div = document.createElement('div');
         div.className = 'proc-card fu';
-        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">🔁 ' + totalD + 'x</span>' + types.slice(0, 2).map(t => '<span class="tag ' + tcls(t) + '" style="font-size:9.5px">' + esc(t) + '</span>').join('') + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
+        div.innerHTML = '<div class="proc-header"><div class="proc-icon">✉️</div><div class="proc-info"><div class="proc-title">' + esc(p.subject) + '</div><div class="proc-meta"><span class="proc-meta-item">📅 ' + fmtD(p.createdAt) + '</span><span class="proc-meta-item">👥 ' + totalN + '</span><span class="proc-meta-item">📨 Disp: ' + totalD + '</span>' + autoInfo + nextInfo + '</div></div><div class="proc-stats"><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a3)">' + replied + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">RESPONDERAM</div></div><div class="proc-stat-box"><div class="proc-stat-val" style="color:var(--a4)">' + opened + '<span style="font-size:12px;color:var(--t3)">/' + totalN + '</span></div><div class="proc-stat-lbl">ABRIRAM</div></div><span class="tag ' + sc + '">' + statusLbl(p.status) + '</span></div></div>';
         div.addEventListener('click', () => openProcPanel(p.id));
         el.appendChild(div);
       });
@@ -3160,7 +3162,7 @@
       document.getElementById('dp-title').textContent = proc.subject;
       const replies = S.replies.filter(r => String(r.procId) === pid);
       const recs = proc.recipients || [];
-      const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(proc.totalDisp) || 0;
+      const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 0), 0) || Number(proc.totalDisp) || 0;
       const opened = recs.filter(r => r.opened).length || Number(proc.totalAbr) || 0;
       const replied = recs.filter(r => r.replied).length || Number(proc.totalResp) || 0;
       const totalN = recs.length || Number(proc.totalDest) || 0;
@@ -3171,10 +3173,28 @@
       recs.forEach(r => {
         const last = r.dispatches?.[r.dispatches.length - 1];
         const openInfo = r.opened ? '<span style="color:var(--a4);font-weight:500">Abriu em: ' + fmtDT(r.openedAt || r.Abriu_Em) + '</span>' : '<span style="color:var(--t3)">Ainda não abriu</span>';
-        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (r.dispatches?.length || 1) + 'x enviado · último: ' + (last ? fmtDT(last.at) : '—') + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
+        const dispCount = (r.dispatches?.length || 0);
+        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (dispCount > 0 ? dispCount + 'x enviado · último: ' + fmtDT(last.at) : (proc.status === 'pending' ? '⏳ Aguardando envio agendado' : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
       });
       h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
-      let allD = []; recs.forEach(r => (r.dispatches || [{ at: proc.createdAt, note: 'Envio inicial' }]).forEach(d => allD.push({ ...d, rn: r.name }))); allD.sort((a, b) => new Date(a.at) - new Date(b.at));
+      let allD = [];
+      recs.forEach(r => {
+        const ds = r.dispatches || [];
+        ds.forEach(d => allD.push({ ...d, rn: r.name }));
+      });
+
+      if (!allD.length && proc.status !== 'pending' && (Number(proc.totalDisp) > 0 || recs.some(r => r.sent))) {
+        // Fallback para quando o processo é antigo e não tinha dispatches individuais no cache
+        allD.push({ at: proc.createdAt, note: 'Envio inicial (legado)', rn: 'Destinatários' });
+      }
+
+      allD.sort((a, b) => new Date(a.at) - new Date(b.at));
+      if (proc.status === 'pending') {
+        const schedDate = proc.proximoDisparo || proc.agendadoPara || proc.Agendado_Para;
+        h += '<div style="background:rgba(255,195,0,.08);border:1px solid rgba(255,195,0,.2);border-radius:7px;padding:10px 13px;font-size:12px;color:var(--a4)">⏳ <strong>Agendado para:</strong> ' + (schedDate ? fmtDT(schedDate) : '—') + '<br><span style="font-size:10.5px;color:var(--t3)">O disparo será feito automaticamente pelo servidor no horário programado.</span></div>';
+      } else if (!allD.length) {
+        h += '<div style="color:var(--t3);font-size:12px;padding:5px 0">Nenhum disparo realizado ainda.</div>';
+      }
       allD.forEach((d, i) => { h += '<div class="tl-item"><div class="tl-num">' + (i + 1) + '</div><div style="flex:1"><div class="tl-date">' + fmtDT(d.at) + '</div><div class="tl-note">' + esc(d.note || 'Disparo') + ' · <span style="color:var(--t3)">' + esc(d.rn) + '</span></div></div></div>'; });
       h += '</div></div>';
       // Replies — store in map with string keys
@@ -3200,7 +3220,17 @@
       {
         const adBar = document.createElement('div');
         adBar.style.cssText = 'width:100%;padding:8px 10px;border-radius:7px;font-size:11.5px;display:flex;align-items:center;gap:10px;margin-bottom:4px;' + (ad.enabled ? 'background:rgba(77,255,195,.07);border:1px solid rgba(77,255,195,.2);' : 'background:rgba(255,255,255,.04);border:1px solid var(--bd);');
-        adBar.innerHTML = '<span style="flex:1">' + (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · ' + ad.sentCount + '/' + ad.maxResends + ' enviados' + (ad.lastSent ? ' · último: ' + fmtDT(ad.lastSent) : '') + '</span>';
+
+        const proximo = proc.proximoDisparo;
+        const isPending = proc.status === 'pending';
+
+        const stopLbl = { reply: 'fornecedor responder', none: 'não parar automaticamente', limit: 'atingir limite' }[ad.stopOn] || ad.stopOn;
+        let infoStr = (ad.enabled ? '🔁 Auto-reenvio <strong style="color:var(--a3)">ATIVO</strong>' : '⏹ Auto-reenvio <strong style="color:var(--t3)">PARADO</strong>') + ' · a cada ' + ad.days + ' dia(s) · <b>re-envios: ' + ad.sentCount + '/' + ad.maxResends + '</b> · Para: <b>' + stopLbl + '</b>';
+        if (proximo) {
+          infoStr += ' · <span style="color:var(--a4);font-weight:600">' + (isPending ? '📅 Envio agendado: ' : '⏱ Próximo: ') + fmtDT(proximo) + '</span>';
+        }
+
+        adBar.innerHTML = '<span style="flex:1">' + infoStr + '</span>';
         const togBtn = document.createElement('button');
         togBtn.className = 'btn btn-xs ' + (ad.enabled ? 'btn-ghost' : 'btn-green');
         togBtn.style.cssText = 'font-size:11px;padding:3px 10px;' + (ad.enabled ? 'color:var(--a1)' : 'color:var(--a3);border-color:var(--a3)');
@@ -3406,10 +3436,7 @@
     function saveSheetsCfg() { CFG.sheetId = document.getElementById('cfg-sid').value.trim(); CFG.apiUrl = document.getElementById('cfg-url').value.trim(); saveCfg(); toast('📊 Sheets salvo!'); updateSettingsUI(); if (CFG.apiUrl) testConn(); }
 
     async function ativarTriggerAutoDispatch() {
-      if (!CFG.apiUrl) { toast('Configure a URL do Web App primeiro', 'var(--a1)'); goTab('settings'); return; }
-      toast('⏳ Ativando trigger...', 'var(--a4)');
-      const r = await api('ativar_auto_dispatch_trigger', {});
-      if (r) toast('✅ Trigger de auto-reenvio ativado no servidor!', 'var(--a3)');
+      toast('💡 Use "Ativar Verificação Automática" em Configurações');
     }
 
 
@@ -3424,7 +3451,7 @@
 
     async function loadTemplates(silent = false) {
       if (!CFG.apiUrl) return;
-      const data = await api('listar_templates', {});
+      const data = await api('listar_modelos', {});
       if (data && Array.isArray(data)) {
         // Remote Google Sheets is the source of truth; replace local state
         const remote = data.map(t => ({ id: t.ID, name: t.Nome, cat: t.Categoria, subject: t.Assunto, body: t.Corpo }));
@@ -3644,38 +3671,9 @@
     // Timer registry for auto-dispatches
     window._autoTimers = window._autoTimers || {};
     function startAutoDispatch(procId, silent = false) {
-      const proc = S.processes.find(p => String(p.id) === String(procId));
-      if (!proc || !proc.autoDispatch || !proc.autoDispatch.enabled) return;
-      const days = Number(proc.autoDispatch.days) || 2;
-      const ms = days * 24 * 60 * 60 * 1000;
-      if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
-      window._autoTimers[procId] = setInterval(async () => {
-        const p = S.processes.find(x => String(x.id) === String(procId));
-        if (!p || !p.autoDispatch?.enabled) { clearInterval(window._autoTimers[procId]); return; }
-        const maxR = Number(p.autoDispatch.maxResends) || 3;
-        const sentCount = (p.autoDispatch.sentCount || 0) + 1;
-        if (sentCount > maxR) { stopAutoDispatch(procId, p, 'limite atingido'); return; }
-        const stop = p.autoDispatch.stopOn;
-        const targets = p.recipients?.filter(r => {
-          if (stop === 'reply' && r.replied) return false;
-          return true;
-        }) || [];
-        if (!targets.length) { stopAutoDispatch(procId, p, 'todos responderam'); return; }
-        const now = new Date().toISOString();
-        targets.forEach(r => { r.dispatches = r.dispatches || []; r.dispatches.push({ at: now, note: 'Auto-reenvio #' + sentCount }); });
-        p.autoDispatch.sentCount = sentCount;
-        p.autoDispatch.lastSent = now;
-        saveState();
-        toast('🔁 Auto-reenvio #' + sentCount + ' para "' + p.subject + '" (' + targets.length + ' dest.)');
-        if (CFG.apiUrl) { for (const r of targets) { const b = p.body.replace(/{nome}/g, r.name).replace(/{empresa}/g, r.name).replace(/{tipo}/g, r.type); await api('enviar_email', { data: { para: r.email, assunto: p.subject, corpo: b, nome_remetente: CFG.gmailName, processo_id: procId, fornecedor_id: r.sid, nome_fornecedor: r.name, tipo_material: r.type, nota: 'Auto-reenvio #' + sentCount } }); } }
-      }, ms);
-      if (!silent) toast('⏱ Auto-reenvio ativado para "' + proc.subject + '" a cada ' + days + ' dia(s)');
-      // Persist auto-dispatch config to Google Sheets so server-side trigger can continue even with browser closed
-      if (CFG.apiUrl) {
-        api('configurar_auto_dispatch', { processoId: procId, intervaloMs: ms, maxReenvios: proc.autoDispatch.maxResends || 3 })
-          .then(r => { if (!r) console.warn('Auto-dispatch: falha ao salvar configuração no servidor para processo ' + procId); })
-          .catch(e => console.error('Auto-dispatch: erro ao salvar configuração no servidor:', e));
-      }
+      const p = S.processes.find(x => String(x.id) === String(procId));
+      if (!p || !p.autoDispatch?.enabled) return;
+      if (!silent) toast('⏱ Auto-reenvio configurado no servidor para "' + p.subject + '"');
     }
     function stopAutoDispatch(procId, proc, reason) {
       if (window._autoTimers[procId]) clearInterval(window._autoTimers[procId]);
