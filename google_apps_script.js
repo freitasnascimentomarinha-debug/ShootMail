@@ -14,6 +14,7 @@ const ABA = {
     respostas: 'Respostas',
     config: 'Config',
     templates: 'Modelos',
+    autoDispatch: 'AutoDispatch',
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -45,6 +46,7 @@ function setupPlanilha() {
         ],
         [ABA.config]: ['Chave', 'Valor'],
         [ABA.templates]: ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo'],
+        [ABA.autoDispatch]: ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo'],
     };
 
     for (const [nome, headers] of Object.entries(abas)) {
@@ -218,6 +220,10 @@ function _processRequest(params) {
 
             // ── Background Jobs (Force) ──
             case 'processar_background': result = processarFilaBackground(); break;
+
+            // ── Auto-dispatch ──
+            case 'configurar_auto_dispatch': result = configurarAutoDispatch(body); break;
+            case 'ativar_auto_dispatch_trigger': result = ativarTriggerAutoDispatch(); break;
 
             default:
                 // Ping de status
@@ -850,12 +856,158 @@ function getMyEmailSafely() {
     }
 }
 // ══════════════════════════════════════════════════════════════════
+//  TEMPLATES
+// ══════════════════════════════════════════════════════════════════
+function listarTemplates() {
+    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
+    return sheetToObjects(sheet);
+}
+
+function salvarTemplate(d) {
+    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
+    const id = d.id || nextId(sheet);
+    sheet.appendRow([id, d.name || '', d.cat || '', d.subject || '', d.body || '']);
+    return { id };
+}
+
+function atualizarTemplate(d) {
+    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
+    const row = findRow(sheet, d.id);
+    if (!row) throw new Error('Template não encontrado: ' + d.id);
+    sheet.getRange(row, 1, 1, 5).setValues([[d.id, d.name || '', d.cat || '', d.subject || '', d.body || '']]);
+    return { id: d.id };
+}
+
+function deletarTemplate(id) {
+    const sheet = getOrCreateSheet(ABA.templates, ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo']);
+    const row = findRow(sheet, id);
+    if (row) sheet.deleteRow(row);
+    return { ok: true };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  AUTO-DISPATCH
+// ══════════════════════════════════════════════════════════════════
+function configurarAutoDispatch(d) {
+    const sheet = getOrCreateSheet(ABA.autoDispatch, ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo']);
+    const now = new Date();
+    const intervaloMs = Number(d.intervaloMs) || 0;
+    const proximoEnvio = new Date(now.getTime() + intervaloMs).toISOString();
+
+    // Atualiza se já existe, senão cria novo
+    if (sheet.getLastRow() > 1) {
+        const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
+        const idx = rows.findIndex(r => String(r[0]) === String(d.processoId));
+        if (idx !== -1) {
+            sheet.getRange(idx + 2, 1, 1, 6).setValues([[
+                d.processoId, intervaloMs, Number(d.maxReenvios) || 3, 0, proximoEnvio, true
+            ]]);
+            return { ok: true, updated: true };
+        }
+    }
+    sheet.appendRow([d.processoId, intervaloMs, Number(d.maxReenvios) || 3, 0, proximoEnvio, true]);
+    return { ok: true, created: true };
+}
+
+function processarAgendamentos() {
+    const adSheet = getOrCreateSheet(ABA.autoDispatch, ['ProcessoID', 'IntervaloMs', 'MaxReenvios', 'ReenviosFeitos', 'ProximoEnvio', 'Ativo']);
+    if (adSheet.getLastRow() < 2) return { processados: 0 };
+
+    const now = new Date();
+    const rows = adSheet.getRange(2, 1, adSheet.getLastRow() - 1, 6).getValues();
+    let processados = 0;
+
+    rows.forEach((row, i) => {
+        const [processoId, intervaloMs, maxReenvios, reenviosFeitos, proximoEnvioStr, ativo] = row;
+        const isAtivo = ativo === true || ativo === 'TRUE';
+        if (!isAtivo) return;
+
+        const proximoEnvio = new Date(proximoEnvioStr);
+        if (isNaN(proximoEnvio) || proximoEnvio > now) return;
+
+        // Busca dados do processo
+        try {
+            const procSheet = getSheet(ABA.processos);
+            const destSheet = getSheet(ABA.destinatarios);
+            const procRow = findRow(procSheet, processoId);
+            if (!procRow) return;
+
+            const procs = sheetToObjects(procSheet);
+            const proc = procs.find(p => String(p.ID) === String(processoId));
+            if (!proc) return;
+
+            const dests = sheetToObjects(destSheet).filter(d => String(d.Processo_ID) === String(processoId));
+            const novoReenvios = Number(reenviosFeitos) + 1;
+
+            // Envia email para cada destinatário
+            dests.forEach(dest => {
+                try {
+                    const corpo = (proc.Corpo_Email || '')
+                        .replace(/{nome}/g, dest.Nome_Fornecedor || '')
+                        .replace(/{empresa}/g, dest.Nome_Fornecedor || '')
+                        .replace(/{tipo}/g, dest.Tipo_Material || '');
+                    enviarEmail({
+                        para: dest.Email_Fornecedor,
+                        assunto: proc.Assunto,
+                        corpo: corpo,
+                        nome_remetente: lerTodasConfigs().gmail_nome || 'ShootMail',
+                        processo_id: processoId,
+                        fornecedor_id: dest.Fornecedor_ID,
+                        nome_fornecedor: dest.Nome_Fornecedor,
+                        tipo_material: dest.Tipo_Material,
+                        nota: 'Auto-reenvio #' + novoReenvios
+                    });
+                } catch (e) {
+                    console.error('Erro ao enviar auto-dispatch para ' + dest.Email_Fornecedor + ': ' + e);
+                }
+            });
+
+            const rowIdx = i + 2;
+            const novoProximoEnvio = new Date(proximoEnvio.getTime() + Number(intervaloMs)).toISOString();
+            const novoAtivo = novoReenvios < Number(maxReenvios);
+            adSheet.getRange(rowIdx, 4).setValue(novoReenvios);
+            adSheet.getRange(rowIdx, 5).setValue(novoProximoEnvio);
+            adSheet.getRange(rowIdx, 6).setValue(novoAtivo);
+            processados++;
+        } catch (e) {
+            console.error('Erro no processamento do agendamento ' + processoId + ': ' + e);
+        }
+    });
+
+    return { processados };
+}
+
+function ativarTriggerAutoDispatch() {
+    // Remove triggers existentes para evitar duplicatas
+    ScriptApp.getProjectTriggers().forEach(t => {
+        if (t.getHandlerFunction() === 'processarAgendamentos') ScriptApp.deleteTrigger(t);
+    });
+    ScriptApp.newTrigger('processarAgendamentos')
+        .timeBased()
+        .everyHours(1)
+        .create();
+    return { ok: true, msg: 'Trigger de auto-dispatch ativado (1 hora)' };
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════════════════════════════════
 function getSheet(nome) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const sheet = ss.getSheetByName(nome);
     if (!sheet) throw new Error('Aba não encontrada: ' + nome + '. Execute setupPlanilha() primeiro.');
+    return sheet;
+}
+
+function getOrCreateSheet(nome, headers) {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName(nome);
+    if (!sheet) {
+        sheet = ss.insertSheet(nome);
+        sheet.appendRow(headers);
+        sheet.getRange(1, 1, 1, headers.length).setBackground('#1c1f2e').setFontColor('#6b6f90').setFontWeight('bold');
+        sheet.setFrozenRows(1);
+    }
     return sheet;
 }
 
