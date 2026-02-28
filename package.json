@@ -1,0 +1,17 @@
+{
+    "name": "shootmail",
+    "version": "1.0.0",
+    "description": "ShootMail — Automação de Cotações",
+    "homepage": "https://freitasnascimentomarinha-debug.github.io/ShootMail/",
+    "main": "index.html",
+    "scripts": {
+        "dev": "npx serve .",
+        "deploy": "gh-pages -d ."
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "gh-pages": "^6.3.0"
+    }
+}
