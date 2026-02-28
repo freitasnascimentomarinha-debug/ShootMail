@@ -90,7 +90,7 @@ function criarMenu() {
         .addItem('🔧 Configurar Planilha', 'setupPlanilha')
         .addItem('📬 Verificar Gmail Agora', 'verificarRespostas')
         .addItem('⏰ Processar Agendados/Auto-Reenvio', 'processarFilaBackground')
-        .addItem('▶ Ativar Verificação Automática (15min)', 'ativarTrigger')
+        .addItem('▶ Ativar Verificação Automática (5min)', 'ativarTrigger')
         .addItem('⏹ Desativar Verificação Automática', 'desativarTrigger')
         .addToUi();
 }

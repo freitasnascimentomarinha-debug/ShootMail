@@ -3186,7 +3186,7 @@
       document.getElementById('dp-title').textContent = proc.subject;
       const replies = S.replies.filter(r => String(r.procId) === pid);
       const recs = proc.recipients || [];
-      const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 1), 0) || Number(proc.totalDisp) || 0;
+      const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 0), 0) || Number(proc.totalDisp) || 0;
       const opened = recs.filter(r => r.opened).length || Number(proc.totalAbr) || 0;
       const replied = recs.filter(r => r.replied).length || Number(proc.totalResp) || 0;
       const totalN = recs.length || Number(proc.totalDest) || 0;
@@ -3197,8 +3197,8 @@
       recs.forEach(r => {
         const last = r.dispatches?.[r.dispatches.length - 1];
         const openInfo = r.opened ? '<span style="color:var(--a4);font-weight:500">Abriu em: ' + fmtDT(r.openedAt || r.Abriu_Em) + '</span>' : '<span style="color:var(--t3)">Ainda não abriu</span>';
-        const dispCount = (r.dispatches?.length || (proc.status === 'pending' ? 0 : 1));
-        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + dispCount + 'x enviado · último: ' + (last ? fmtDT(last.at) : (dispCount > 0 ? fmtDT(proc.createdAt) : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
+        const dispCount = (r.dispatches?.length || 0);
+        h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (dispCount > 0 ? dispCount + 'x enviado · último: ' + fmtDT(last.at) : (proc.status === 'pending' ? '⏳ Aguardando envio agendado' : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
       });
       h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
       let allD = [];
@@ -3213,7 +3213,12 @@
       }
 
       allD.sort((a, b) => new Date(a.at) - new Date(b.at));
-      if (!allD.length) h += '<div style="color:var(--t3);font-size:12px;padding:5px 0">Nenhum disparo realizado ainda.</div>';
+      if (proc.status === 'pending') {
+        const schedDate = proc.proximoDisparo || proc.agendadoPara || proc.Agendado_Para;
+        h += '<div style="background:rgba(255,195,0,.08);border:1px solid rgba(255,195,0,.2);border-radius:7px;padding:10px 13px;font-size:12px;color:var(--a4)">⏳ <strong>Agendado para:</strong> ' + (schedDate ? fmtDT(schedDate) : '—') + '<br><span style="font-size:10.5px;color:var(--t3)">O disparo será feito automaticamente pelo servidor no horário programado.</span></div>';
+      } else if (!allD.length) {
+        h += '<div style="color:var(--t3);font-size:12px;padding:5px 0">Nenhum disparo realizado ainda.</div>';
+      }
       allD.forEach((d, i) => { h += '<div class="tl-item"><div class="tl-num">' + (i + 1) + '</div><div style="flex:1"><div class="tl-date">' + fmtDT(d.at) + '</div><div class="tl-note">' + esc(d.note || 'Disparo') + ' · <span style="color:var(--t3)">' + esc(d.rn) + '</span></div></div></div>'; });
       h += '</div></div>';
       // Replies — store in map with string keys
