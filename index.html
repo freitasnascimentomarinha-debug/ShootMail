@@ -2484,6 +2484,17 @@
     function saveCfg() { localStorage.setItem('sm_cfg', JSON.stringify(CFG)); }
     function saveState() { localStorage.setItem('sm_state', JSON.stringify(S)); }
 
+    function updateBadges() {
+      const bSup = document.getElementById('nb-sup');
+      const bTpl = document.getElementById('nb-tpl');
+      const bProc = document.getElementById('nb-proc');
+      const bRep = document.getElementById('nb-rep');
+      if (bSup) bSup.textContent = S.suppliers.length;
+      if (bTpl) bTpl.textContent = S.templates.length;
+      if (bProc) bProc.textContent = S.processes.length;
+      if (bRep) bRep.textContent = S.replies.length;
+    }
+
     // ══ DEMO DATA ══
     function initDemo() {
       if (S.suppliers.length) return;
@@ -3467,13 +3478,13 @@
 
       if (S.autoSync) {
         syb.className = 'status-badge sb-ok';
-        syb.textContent = '● Ativado (15 min)';
+        syb.textContent = '● Verificação Mestre Ativa (5 min)';
         sybt.className = 'btn btn-sm btn-ghost';
         sybt.style.color = 'var(--a1)';
-        sybt.textContent = 'Desativar';
+        sybt.textContent = 'Desativar Master';
       } else {
         syb.className = 'status-badge sb-warn';
-        syb.textContent = '○ Desativado';
+        syb.textContent = '○ Verificação Mestre Pausada';
         sybt.className = 'btn btn-sm btn-green';
         sybt.textContent = 'Ativar agora';
       }
