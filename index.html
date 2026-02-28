@@ -2092,60 +2092,6 @@
               </div>
             </div>
 
-            <div class="settings-section full">
-              <div class="settings-hd">
-                <span class="settings-ico">🚀</span>
-                <div>
-                  <div class="settings-lbl">Como Configurar — Passo a Passo</div>
-                  <div class="settings-sub">Conecte o ShootMail à sua conta Google</div>
-                </div>
-              </div>
-              <div class="settings-bd">
-                <div class="step">
-                  <div class="step-num">1</div>
-                  <div>
-                    <div class="step-title">Criar planilha no Google Sheets</div>
-                    <div class="step-desc">Acesse <a href="https://sheets.new" target="_blank"
-                        style="color:var(--a5)">sheets.new</a> e crie uma planilha nova. Copie o ID da URL:
-                      <code>.../d/SEU_ID_AQUI/edit</code>
-                    </div>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-num">2</div>
-                  <div>
-                    <div class="step-title">Instalar o Apps Script</div>
-                    <div class="step-desc">Na planilha: <code>Extensões → Apps Script</code> → apague o código padrão →
-                      cole o arquivo <code>google_apps_script.js</code> → salve <code>Ctrl+S</code></div>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-num">3</div>
-                  <div>
-                    <div class="step-title">Executar Setup (1ª vez)</div>
-                    <div class="step-desc">Selecione a função <code>setupPlanilha</code> → clique ▶ Executar → autorize
-                      as permissões. As 6 abas serão criadas automaticamente.</div>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-num">4</div>
-                  <div>
-                    <div class="step-title">Publicar como Web App</div>
-                    <div class="step-desc"><code>Implantar → Nova implantação</code> · Tipo: <code>App da Web</code> ·
-                      Executar como: <code>Eu mesmo</code> · Acesso: <code>Qualquer pessoa</code> → copie a URL gerada
-                    </div>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-num">5</div>
-                  <div>
-                    <div class="step-title">Ativar Verificação Mestre Automática</div>
-                    <div class="step-desc">Na planilha: menu <code>⚡ ShootMail → Ativar Verificação Automática</code> —
-                      Um único gatilho mestre que verifica Gmail, Disparos Agendados e Auto-reenvios a cada 5 min.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <div class="settings-section full">
               <div class="settings-hd"><span class="settings-ico">📡</span>
@@ -2262,26 +2208,72 @@
           </li>
         </ul>
 
-        <h3 style="color: var(--a3); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-bottom: 15px;">
-          Passo a Passo Para Implantar</h3>
+        <h3 style="color: var(--a3); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-bottom: 15px;">🚀
+          Passo a Passo Detalhado</h3>
         <div style="counter-reset: step; font-size: 13.5px;">
-          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
             <span
-              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</span>
-            <strong>Crie sua Planilha:</strong> Vá em <a href="https://sheets.new" target="_blank"
-              style="color:var(--a3)">sheets.new</a> e copie o ID da URL.
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">1</span>
+            <strong>Crie sua Planilha:</strong> Acesse <a href="https://sheets.new" target="_blank"
+              style="color:var(--a3)">sheets.new</a>. O <b>ID da Planilha</b> está na URL entre <code>/d/</code> e
+            <code>/edit</code>. Ex: <i>.../d/<b>SEU_ID_AQUI</b>/edit</i>.
           </div>
-          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
             <span
-              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</span>
-            <strong>Instale o Código:</strong> Baixe o script nesta página, vá em Extensões -> Apps Script e cole o
-            código.
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">2</span>
+            <strong>Instale o Apps Script:</strong> No menu da planilha, vá em <code>Extensões → Apps Script</code>.
+            Apague o código inicial, cole o conteúdo do <code>google_apps_script.js</code> e salve
+            (<code>Ctrl+S</code>).
           </div>
-          <div style="margin-bottom: 12px; padding-left: 35px; position: relative;">
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
             <span
-              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 25px; height: 25px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</span>
-            <strong>Publique como Web App:</strong> Clique em Implantar -> Nova Implantação -> App da Web. Acesso:
-            Qualquer pessoa.
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">3</span>
+            <strong>Execute o Setup:</strong> Selecione a função <code>setupPlanilha</code> no topo e clique em <b>▶
+              Executar</b>. Autorize as permissões para criar as abas necessárias.
+          </div>
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">4</span>
+            <strong>Publique o Web App:</strong> Clique em <code>Implantar → Nova Implantação</code>. Escolha <b>App da
+              Web</b>. Configure "Acesso: Qualquer pessoa" e copie a <b>URL de Web App</b> gerada.
+          </div>
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">5</span>
+            <strong>Conecte ao ShootMail:</strong> Volte às Configurações do site, cole o <b>ID da Planilha</b> e a
+            <b>URL do Web App</b>, clique em <b>Salvar</b> e depois em <b>🔌 Testar Conexão</b>.
+          </div>
+          <div style="margin-bottom: 15px; padding-left: 40px; position: relative;">
+            <span
+              style="counter-increment: step; content: counter(step); position: absolute; left: 0; width: 28px; height: 28px; background: var(--a1); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid var(--bd);">6</span>
+            <strong>Ative os Motores:</strong> Após conectar, pressione os botões de <b>Ativar Verificação</b> para
+            ligar os motores de disparo e sincronização automática.
+          </div>
+        </div>
+
+        <h3
+          style="color: var(--a5); border-bottom: 1px solid var(--bd); padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px;">
+          💎 Potência Máxima: Funcionalidades Elite</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px;">
+          <div
+            style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border-left: 3px solid var(--a1);">
+            <strong style="color: var(--t1);">📦 Banco de Dados</strong><br>
+            Cadastre fornecedores com item específico e natureza de fornecimento para filtros ultra-rápidos.
+          </div>
+          <div
+            style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border-left: 3px solid var(--a3);">
+            <strong style="color: var(--t1);">⚡ Automação Pura</strong><br>
+            Disparos programados e re-envios que param sozinhos quando você recebe a resposta desejada.
+          </div>
+          <div
+            style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border-left: 3px solid var(--a4);">
+            <strong style="color: var(--t1);">📊 Relatórios Elite</strong><br>
+            Indicadores visuais de visualização e resposta, com histórico completo de todas as tratativas.
+          </div>
+          <div
+            style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border-left: 3px solid var(--a5);">
+            <strong style="color: var(--t1);">📈 Dashboards Viva</strong><br>
+            Acompanhe o funil de cotações com indicadores de performance e histórico em forma de relatório.
           </div>
         </div>
 
