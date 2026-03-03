@@ -1826,7 +1826,10 @@
                   <div style="display:flex;gap:8px;align-items:flex-end">
                     <div class="fg" style="flex:1;margin-bottom:0">
                       <label>Agendamento (opcional)</label>
-                      <input class="finp" type="datetime-local" id="c-sched" step="60">
+                      <div style="display:flex;gap:8px">
+                        <input class="finp" type="date" id="c-sched-date" style="flex:1">
+                        <input class="finp" type="time" id="c-sched-time" step="60" style="width:140px">
+                      </div>
                     </div>
                     <div style="flex:1;margin-bottom:0">
                       <label>Anexos (Fotos, PDF, etc.)</label>
@@ -2998,7 +3001,28 @@
     }
 
     // ══ COMPOSE ══
+    function setComposeScheduleDefaults() {
+      const dateEl = document.getElementById('c-sched-date');
+      const timeEl = document.getElementById('c-sched-time');
+      if (!dateEl || !timeEl) return;
+
+      const now = new Date();
+      if (!dateEl.value) {
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        dateEl.value = y + '-' + m + '-' + d;
+      }
+
+      if (!timeEl.value) {
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        timeEl.value = hh + ':' + mm;
+      }
+    }
+
     function renderCompose() {
+      setComposeScheduleDefaults();
       const active = S.suppliers.filter(s => s.status === 'active');
       const types = [...new Set(active.map(s => s.type))];
       document.getElementById('c-type-chips').innerHTML = types.map(t => '<div class="chip" onclick="toggleChip(this);applyChipF()">' + esc(t) + '</div>').join('');
@@ -3076,19 +3100,30 @@
       const subject = document.getElementById('c-subject').value.trim();
       const body = document.getElementById('c-body').value.trim();
       const recips = getRecips();
-      const sched = document.getElementById('c-sched').value;
+      const schedDateVal = document.getElementById('c-sched-date').value;
+      const schedTimeVal = document.getElementById('c-sched-time').value;
       if (S.isSending) return;
       if (!subject) { toast('Digite um assunto!', 'var(--a1)'); return; }
       if (!body) { toast('Digite o corpo do email!', 'var(--a1)'); return; }
       if (!recips.length) { toast('Selecione ao menos um fornecedor!', 'var(--a1)'); return; }
 
-      // Se agendado, valida que o horário é no futuro
+      // Regras de agendamento:
+      // - Data pode ficar preenchida automaticamente
+      // - Sem hora: envio imediato
+      // - Com hora: agenda por data+hora
+      // - Se horário já passou: envia no horário atual
       let agendadoPara = '';
-      if (sched) {
-        const sDate = new Date(sched);
+      if (schedTimeVal) {
+        const baseDate = schedDateVal || new Date().toISOString().slice(0, 10);
+        const sDate = new Date(baseDate + 'T' + schedTimeVal);
         if (isNaN(sDate.getTime())) { toast('Data de agendamento inválida!', 'var(--a1)'); return; }
-        if (sDate <= new Date()) { toast('O agendamento deve ser para uma data futura!', 'var(--a1)'); return; }
-        agendadoPara = sDate.toISOString();
+        const nowRef = new Date();
+        if (sDate <= nowRef) {
+          agendadoPara = nowRef.toISOString();
+          toast('⏱ Horário já passou — envio ajustado para agora.', 'var(--a4)');
+        } else {
+          agendadoPara = sDate.toISOString();
+        }
       }
 
       S.isSending = true;
