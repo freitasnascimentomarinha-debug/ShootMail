@@ -2647,19 +2647,6 @@
     }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
 
-    function initSchedulePicker() {
-      const sched = document.getElementById('c-sched');
-      if (!sched) return;
-      const openPicker = () => {
-        if (typeof sched.showPicker === 'function') {
-          try { sched.showPicker(); } catch (_) { }
-        }
-      };
-      sched.addEventListener('click', openPicker);
-      sched.addEventListener('focus', openPicker);
-    }
-
-
     function renderTemplates() {
       const list = document.getElementById('tpl-list');
       const empty = document.getElementById('tpl-list-empty');
@@ -3965,7 +3952,6 @@
 
     // ══ INIT ══
     document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); }));
-    initSchedulePicker();
     loadAll(); initDemo(); updateBadges(); renderDash(); updateSettingsUI(); restartAutomations(); _startAutoSyncLoop();
     if (CFG.apiUrl) setTimeout(() => syncAll(), 800);
     function openNewSupModal() {
