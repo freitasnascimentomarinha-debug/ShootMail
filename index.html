@@ -1826,7 +1826,7 @@
                   <div style="display:flex;gap:8px;align-items:flex-end">
                     <div class="fg" style="flex:1;margin-bottom:0">
                       <label>Agendamento (opcional)</label>
-                      <input class="finp" type="datetime-local" id="c-sched">
+                      <input class="finp" type="datetime-local" id="c-sched" step="60">
                     </div>
                     <div style="flex:1;margin-bottom:0">
                       <label>Anexos (Fotos, PDF, etc.)</label>
@@ -2305,9 +2305,9 @@
       </div>
       <div class="modal-bd">
         <div class="fgrid">
-          <div class="fg"><label>Nome / Razão Social *</label><input class="finp" type="text" id="s-name"
+            <div class="fg"><label>Nome / Razão Social</label><input class="finp" type="text" id="s-name"
               placeholder="Ex: Aço Brasil Ltda"></div>
-          <div class="fg"><label>Email Principal *</label><input class="finp" type="email" id="s-email"
+            <div class="fg"><label>Email Principal</label><input class="finp" type="email" id="s-email"
               placeholder="contato@empresa.com"></div>
           <div class="fg"><label>Telefone</label><input class="finp" type="text" id="s-phone"
               placeholder="(11) 9 0000-0000"></div>
@@ -2316,7 +2316,7 @@
           <div class="fg"><label>Email 3 (opcional)</label><input class="finp" type="email" id="s-email3"
               placeholder="terceiro@empresa.com"></div>
 
-          <div class="fg"><label>Tipo de Material *</label>
+          <div class="fg"><label>Tipo de Material</label>
             <select class="finp" id="s-type" onchange="handleNewType(this)">
               <option value="">Selecione...</option>
               <!-- Dinamicamente preenchido -->
@@ -2327,7 +2327,7 @@
 
           <div class="fg"><label>Código do Item</label><input class="finp" type="text" id="s-code"
               placeholder="Ex: ABC-123"></div>
-          <div class="fg"><label>Materiais *</label><input class="finp" type="text" id="s-mats"
+            <div class="fg"><label>Materiais</label><input class="finp" type="text" id="s-mats"
               placeholder="Ex: Aço inox, Alumínio"></div>
 
           <div class="fg"><label>Cidade / UF</label><input class="finp" type="text" id="s-city"
@@ -2635,8 +2635,29 @@
     function closeModal(id) { document.getElementById(id).classList.remove('on'); if (id === 'modal-sup') { S.editSup = null; clearSupForm(); document.getElementById('modal-sup-title').textContent = '+ Novo Fornecedor'; } }
 
     // ══ PANEL ══
-    function openProcPanel(pid) { const p = S.processes.find(p => String(p.id) === String(pid)); if (!p) return; renderPanel(p); document.getElementById('detail-panel').classList.add('open'); document.getElementById('panel-overlay').classList.add('on'); }
+    async function openProcPanel(pid) {
+      const p = S.processes.find(p => String(p.id) === String(pid));
+      if (!p) return;
+      renderPanel(p);
+      document.getElementById('detail-panel').classList.add('open');
+      document.getElementById('panel-overlay').classList.add('on');
+      const hist = await _fetchHistory(pid);
+      const current = S.processes.find(x => String(x.id) === String(pid));
+      if (current) renderPanel(current, hist);
+    }
     function closePanel() { document.getElementById('detail-panel').classList.remove('open'); document.getElementById('panel-overlay').classList.remove('on'); }
+
+    function initSchedulePicker() {
+      const sched = document.getElementById('c-sched');
+      if (!sched) return;
+      const openPicker = () => {
+        if (typeof sched.showPicker === 'function') {
+          try { sched.showPicker(); } catch (_) { }
+        }
+      };
+      sched.addEventListener('click', openPicker);
+      sched.addEventListener('focus', openPicker);
+    }
 
 
     function renderTemplates() {
@@ -2859,7 +2880,6 @@
       const type = document.getElementById('s-type').value;
       const mats = document.getElementById('s-mats').value.trim();
       const code = document.getElementById('s-code').value.trim();
-      if (!name || !email || !type || !mats) { toast('Preencha os campos obrigatórios', 'var(--a1)'); return; }
       const d = { nome: name, email, email2: document.getElementById('s-email2').value.trim(), email3: document.getElementById('s-email3').value.trim(), tipo: type, materiais: mats, telefone: document.getElementById('s-phone').value.trim(), cnpj: document.getElementById('s-cnpj').value.trim(), cidade: document.getElementById('s-city').value.trim(), status: document.getElementById('s-status').value, notas: document.getElementById('s-notes').value.trim(), codigo_item: code };
       if (S.editSup !== null) d.id = S.editSup;
       if (CFG.apiUrl) { const r = await api('salvar_fornecedor', { data: d }); if (r) toast(S.editSup ? 'Fornecedor atualizado!' : 'Fornecedor salvo no Sheets!'); }
@@ -3253,11 +3273,22 @@
       });
     }
 
-    function renderPanel(proc) {
+    function renderPanel(proc, historyRows = null) {
       const pid = String(proc.id);
       document.getElementById('dp-title').textContent = proc.subject;
       const replies = S.replies.filter(r => String(r.procId) === pid);
       const recs = proc.recipients || [];
+      const normalizedHistory = Array.isArray(historyRows)
+        ? historyRows
+          .map(h => ({
+            at: h.Data_Hora || h.data_hora || h.at || '',
+            sid: h.Fornecedor_ID || h.fornecedor_id || h.sid || '',
+            supplier: h.Nome_Fornecedor || h.nome_fornecedor || h.rn || '',
+            note: h.Nota || h.nota || h.note || 'Disparo'
+          }))
+          .filter(h => h.at)
+        : [];
+      const hasServerHistory = normalizedHistory.length > 0;
       const totalD = recs.reduce((a, r) => a + (r.dispatches?.length || 0), 0) || Number(proc.totalDisp) || 0;
       const opened = recs.filter(r => r.opened).length || Number(proc.totalAbr) || 0;
       const replied = recs.filter(r => r.replied).length || Number(proc.totalResp) || 0;
@@ -3267,17 +3298,29 @@
       let h = '<div><div class="dp-sec-title">Estatísticas</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">' + sbox('Disparos', totalD, 'var(--a2)') + sbox('Abriram', opened + '/' + totalN, 'var(--a4)') + sbox('Responderam', replied + '/' + totalN, 'var(--a3)') + '</div></div>';
       h += '<div><div class="dp-sec-title">Destinatários</div>';
       recs.forEach(r => {
-        const last = r.dispatches?.[r.dispatches.length - 1];
+        const recDispatches = hasServerHistory
+          ? normalizedHistory
+            .filter(d => (d.sid && String(d.sid) === String(r.sid)) || (!d.sid && d.supplier && d.supplier === r.name))
+            .sort((a, b) => new Date(a.at) - new Date(b.at))
+          : (r.dispatches || []);
+        const last = recDispatches?.[recDispatches.length - 1];
         const openInfo = r.opened ? '<span style="color:var(--a4);font-weight:500">Abriu em: ' + fmtDT(r.openedAt || r.Abriu_Em) + '</span>' : '<span style="color:var(--t3)">Ainda não abriu</span>';
-        const dispCount = (r.dispatches?.length || 0);
+        const dispCount = (recDispatches?.length || 0);
         h += '<div class="rr"><div style="flex:1"><div style="font-weight:500;font-size:13px">' + esc(r.name) + '</div><div style="font-size:10.5px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' + esc(r.email) + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:2px">' + openInfo + '</div><div style="font-size:9.5px;color:var(--t3);margin-top:1px">' + (dispCount > 0 ? dispCount + 'x enviado · último: ' + fmtDT(last.at) : (proc.status === 'pending' ? '⏳ Aguardando envio agendado' : '—')) + '</div></div><div style="display:flex;gap:5px;font-size:12px"><span class="rr-ico ' + (r.opened ? 'on' : '') + '" title="' + (r.opened ? 'Abriu' : 'Não abriu') + '">👁️</span><span class="rr-ico ' + (r.replied ? 'on' : '') + '" title="' + (r.replied ? 'Respondeu' : 'Não respondeu') + '">💬</span></div><button class="btn btn-ghost btn-xs" data-rsnd="' + pid + '|' + r.sid + '">🔁</button></div>';
       });
       h += '</div><div><div class="dp-sec-title">Histórico de Disparos</div><div>';
       let allD = [];
-      recs.forEach(r => {
-        const ds = r.dispatches || [];
-        ds.forEach(d => allD.push({ ...d, rn: r.name }));
-      });
+      if (hasServerHistory) {
+        normalizedHistory.forEach(d => {
+          const rec = recs.find(r => String(r.sid) === String(d.sid));
+          allD.push({ at: d.at, note: d.note, rn: d.supplier || rec?.name || 'Destinatário' });
+        });
+      } else {
+        recs.forEach(r => {
+          const ds = r.dispatches || [];
+          ds.forEach(d => allD.push({ ...d, rn: r.name }));
+        });
+      }
 
       if (!allD.length && proc.status !== 'pending' && (Number(proc.totalDisp) > 0 || recs.some(r => r.sent))) {
         // Fallback para quando o processo é antigo e não tinha dispatches individuais no cache
@@ -3922,6 +3965,7 @@
 
     // ══ INIT ══
     document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', function (e) { if (e.target === this) closeModal(this.id); }));
+    initSchedulePicker();
     loadAll(); initDemo(); updateBadges(); renderDash(); updateSettingsUI(); restartAutomations(); _startAutoSyncLoop();
     if (CFG.apiUrl) setTimeout(() => syncAll(), 800);
     function openNewSupModal() {
