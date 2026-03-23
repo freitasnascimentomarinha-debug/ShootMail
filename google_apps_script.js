@@ -41,7 +41,8 @@ function setupPlanilha() {
         ],
         [ABA.respostas]: [
             'ID', 'Processo_ID', 'Fornecedor_ID', 'Nome_Fornecedor', 'Email_Fornecedor',
-            'Assunto_Resposta', 'Preview', 'Respondido_Em', 'Link_Email', 'Anexos', 'Processo_Assunto'
+            'Assunto_Resposta', 'Preview', 'Respondido_Em', 'Link_Email', 'Anexos', 'Processo_Assunto',
+            'Thread_ID', 'Mensagem_ID', 'Em_Resposta_A', 'Direcao'
         ],
         [ABA.config]: ['Chave', 'Valor'],
         [ABA.templates]: ['ID', 'Nome', 'Categoria', 'Assunto', 'Corpo'],
@@ -196,6 +197,7 @@ function _processRequest(params) {
             // ── Respostas ──
             case 'todas_respostas': result = todasRespostas(); break;
             case 'verificar_respostas': result = verificarRespostas(); break;
+            case 'responder_resposta': result = responderResposta(body.data); break;
             case 'baixar_anexo': result = baixarAnexo(body.msgId, body.filename); break;
             case 'ativar_auto_sync':
             case 'alternar_auto_sync': result = ativarTrigger(); break;
@@ -529,6 +531,28 @@ function listarDisparos(procId) {
     return data.filter(d => String(d.Processo_ID) === String(procId));
 }
 
+function registrarMensagemResposta(respSheet, data) {
+    const idR = nextId(respSheet);
+    respSheet.appendRow([
+        idR,
+        data.processoId || '',
+        data.fornecedorId || '',
+        data.nomeFornecedor || '',
+        data.emailFornecedor || '',
+        data.assunto || '',
+        (data.preview || '').slice(0, 500),
+        data.respondidoEm || '',
+        data.linkEmail || '',
+        data.anexos || '',
+        data.processoAssunto || '',
+        data.threadId || '',
+        data.mensagemId || '',
+        data.emRespostaA || '',
+        data.direcao || 'incoming'
+    ]);
+    return idR;
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  RESPOSTAS — verifica caixa de entrada do Gmail
 // ══════════════════════════════════════════════════════════════════
@@ -560,6 +584,7 @@ function verificarRespostas() {
             if (registrados.has(msgId)) return;
 
             const fromEmail = extractEmail(msg.getFrom()).toLowerCase();
+            const threadId = thread.getId();
 
             // 1. NUNCA conta emails enviados por VOCÊ mesmo (ou seus aliases) como resposta
             if (aliases.includes(fromEmail)) return;
@@ -632,13 +657,45 @@ function verificarRespostas() {
 
             const anexos = msg.getAttachments().map(a => a.getName()).join('; ');
             const date = msg.getDate().toISOString();
+            const ultRegistroThread = respostas
+                .filter(r => String(r.Thread_ID || '') === String(threadId))
+                .sort((a, b) => new Date(a.Respondido_Em || 0) - new Date(b.Respondido_Em || 0))
+                .pop();
 
             // Registra resposta
-            const idR = nextId(respSheet);
-            respSheet.appendRow([
-                idR, procAlvo.ID, forn.ID, forn.Nome, fromEmail,
-                subjectOrig, msg.getPlainBody().slice(0, 500), date, msgId, anexos, procAlvo.Assunto
-            ]);
+            const idR = registrarMensagemResposta(respSheet, {
+                processoId: procAlvo.ID,
+                fornecedorId: forn.ID,
+                nomeFornecedor: forn.Nome,
+                emailFornecedor: fromEmail,
+                assunto: subjectOrig,
+                preview: msg.getPlainBody(),
+                respondidoEm: date,
+                linkEmail: msgId,
+                anexos: anexos,
+                processoAssunto: procAlvo.Assunto,
+                threadId: threadId,
+                mensagemId: msgId,
+                emRespostaA: ultRegistroThread ? ultRegistroThread.ID : '',
+                direcao: 'incoming'
+            });
+            respostas.push({
+                ID: idR,
+                Processo_ID: procAlvo.ID,
+                Fornecedor_ID: forn.ID,
+                Nome_Fornecedor: forn.Nome,
+                Email_Fornecedor: fromEmail,
+                Assunto_Resposta: subjectOrig,
+                Preview: msg.getPlainBody().slice(0, 500),
+                Respondido_Em: date,
+                Link_Email: msgId,
+                Anexos: anexos,
+                Processo_Assunto: procAlvo.Assunto,
+                Thread_ID: threadId,
+                Mensagem_ID: msgId,
+                Em_Resposta_A: ultRegistroThread ? ultRegistroThread.ID : '',
+                Direcao: 'incoming'
+            });
             registrados.add(msgId);
             novas++;
 
@@ -660,6 +717,59 @@ function verificarRespostas() {
     });
 
     return { novas_respostas: novas };
+}
+
+function responderResposta(d) {
+    if (!d || !d.email_fornecedor) throw new Error('Dados insuficientes para responder a conversa');
+
+    const respSheet = getSheet(ABA.respostas);
+    const procSheet = getSheet(ABA.processos);
+    const respostas = sheetToObjects(respSheet);
+    const rowAtual = respostas.find(r => String(r.ID) === String(d.reply_id));
+    const threadId = d.thread_id || (rowAtual && rowAtual.Thread_ID) || (rowAtual && rowAtual.Link_Email ? GmailApp.getMessageById(String(rowAtual.Link_Email)).getThread().getId() : '');
+    if (!threadId) throw new Error('Thread do Gmail não encontrada para esta resposta');
+    const thread = GmailApp.getThreadById(String(threadId));
+    if (!thread) throw new Error('Thread do Gmail não encontrada');
+
+    const tz = Session.getScriptTimeZone();
+    const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+    const nome = lerTodasConfigs().gmail_nome || 'ShootMail';
+    const corpo = (d.corpo || '').trim();
+    if (!corpo) throw new Error('Corpo da resposta vazio');
+
+    const htmlBody = corpo.replace(/\n/g, '<br>');
+    const ultimaMsg = thread.getMessages().slice(-1)[0];
+    const enviada = ultimaMsg.reply(corpo, { name: nome, htmlBody: htmlBody });
+    const proc = sheetToObjects(procSheet).find(p => String(p.ID) === String(d.processo_id));
+    const ultRegistroThread = respostas
+        .filter(r => String(r.Thread_ID || '') === String(threadId))
+        .sort((a, b) => new Date(a.Respondido_Em || 0) - new Date(b.Respondido_Em || 0))
+        .pop();
+
+    const idR = registrarMensagemResposta(respSheet, {
+        processoId: d.processo_id,
+        fornecedorId: d.fornecedor_id,
+        nomeFornecedor: d.nome_fornecedor,
+        emailFornecedor: d.email_fornecedor,
+        assunto: enviada.getSubject(),
+        preview: corpo,
+        respondidoEm: now,
+        linkEmail: enviada.getId(),
+        anexos: '',
+        processoAssunto: proc ? proc.Assunto : (d.assunto || ''),
+        threadId: threadId,
+        mensagemId: enviada.getId(),
+        emRespostaA: d.parent_reply_id || (ultRegistroThread ? ultRegistroThread.ID : ''),
+        direcao: 'outgoing'
+    });
+
+    return {
+        id: idR,
+        threadId: threadId,
+        mensagemId: enviada.getId(),
+        linkEmail: enviada.getId(),
+        respondidoEm: now
+    };
 }
 
 function baixarAnexo(msgId, filename) {

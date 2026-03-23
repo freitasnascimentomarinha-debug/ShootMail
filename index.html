@@ -1630,6 +1630,8 @@
                 </button>
                 <button class="btn btn-ghost btn-sm" onclick="openImportModal()">📥 Importar CSV</button>
                 <button class="btn btn-ghost btn-sm" onclick="exportSupCSV()">📤 Exportar CSV</button>
+                <button class="btn btn-red btn-sm" id="sup-delete-selected-btn" onclick="bulkDeleteSups()"
+                  style="display:none">🗑 Excluir selecionados</button>
               </div>
               <!-- Linha 2: busca e filtros -->
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -2455,6 +2457,20 @@
       <div
         style="padding:20px 22px;font-size:13px;color:var(--t2);line-height:1.75;white-space:pre-wrap;min-height:80px;max-height:300px;overflow-y:auto"
         id="rv-body">—</div>
+      <div style="padding:16px 22px;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);background:var(--bg3)">
+        <div
+          style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">
+          💬 Histórico da conversa</div>
+        <div id="rv-chat-history" style="display:flex;flex-direction:column;gap:10px;max-height:260px;overflow-y:auto"></div>
+      </div>
+      <div style="padding:16px 22px;border-bottom:1px solid var(--bd)">
+        <div
+          style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">
+          ✍️ Responder</div>
+        <textarea class="finp" id="rv-reply-text" placeholder="Escreva sua resposta para este fornecedor..."
+          style="min-height:110px;resize:vertical"></textarea>
+        <div style="margin-top:10px;font-size:11px;color:var(--t3)" id="rv-reply-hint">A resposta será anexada ao histórico desta tratativa.</div>
+      </div>
       <div id="rv-att-wrap" style="display:none;padding:12px 22px;border-top:1px solid var(--bd);background:var(--bg3)">
         <div
           style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">
@@ -2463,6 +2479,7 @@
       </div>
       <div class="modal-ft">
         <button class="btn btn-ghost" onclick="closeModal('modal-reply-view')">Fechar</button>
+        <button class="btn btn-red" id="rv-send-btn" onclick="replyToCurrentReply()">↩ Responder</button>
         <button class="btn btn-amber" onclick="printReplyPDF()">🖨 Baixar PDF</button>
         <a class="btn btn-blue" id="rv-gmail-link" href="#" target="_blank">🔗 Abrir no Gmail</a>
       </div>
@@ -2480,9 +2497,93 @@
     let connected = false;
     let _editTplId = null;
 
+    function getReplyThreadKey(reply) {
+      if (!reply) return '';
+      return String(reply.threadId || reply.threadKey || ('proc-' + (reply.procId || '0') + '-sup-' + (reply.sid || '0')));
+    }
+    function normReply(raw) {
+      if (!raw) return null;
+      const reply = { ...raw };
+      reply.id = reply.id != null ? reply.id : Date.now();
+      reply.procId = reply.procId != null ? reply.procId : reply.Processo_ID;
+      reply.sid = reply.sid != null ? reply.sid : reply.Fornecedor_ID;
+      reply.supplierName = reply.supplierName || reply.Nome_Fornecedor || '';
+      reply.supplierEmail = reply.supplierEmail || reply.Email_Fornecedor || '';
+      reply.procSubject = reply.procSubject || reply.Processo_Assunto || '';
+      reply.subject = reply.subject || reply.Assunto_Resposta || reply.procSubject || '';
+      reply.preview = reply.preview || reply.Preview || '';
+      reply.repliedAt = reply.repliedAt || reply.Respondido_Em || new Date().toISOString();
+      reply.link = reply.link || reply.Link_Email || '';
+      reply.attachments = reply.attachments || reply.Anexos || '';
+      reply.threadId = reply.threadId || reply.Thread_ID || reply.threadKey || '';
+      reply.messageId = reply.messageId || reply.Mensagem_ID || reply.link || '';
+      reply.parentReplyId = reply.parentReplyId || reply.Em_Resposta_A || '';
+      reply.direction = reply.direction || reply.Direcao || 'incoming';
+      reply.threadKey = getReplyThreadKey(reply);
+      return reply;
+    }
+    function normalizeReplies() {
+      S.replies = (S.replies || []).map(normReply).filter(Boolean);
+    }
+    function getReplyConversationItems(reply) {
+      const threadKey = getReplyThreadKey(reply);
+      return (S.replies || [])
+        .map(normReply)
+        .filter(item => item && getReplyThreadKey(item) === threadKey)
+        .sort((a, b) => {
+          const da = new Date(a.repliedAt || 0).getTime();
+          const db = new Date(b.repliedAt || 0).getTime();
+          if (da !== db) return da - db;
+          return Number(a.id || 0) - Number(b.id || 0);
+        });
+    }
+    function getReplyConversationRoots() {
+      const grouped = new Map();
+      (S.replies || []).map(normReply).filter(Boolean).forEach(reply => {
+        const key = getReplyThreadKey(reply);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(reply);
+      });
+      return [...grouped.values()].map(items => {
+        items.sort((a, b) => {
+          const da = new Date(a.repliedAt || 0).getTime();
+          const db = new Date(b.repliedAt || 0).getTime();
+          if (da !== db) return da - db;
+          return Number(a.id || 0) - Number(b.id || 0);
+        });
+        const primary = items.find(item => item.direction !== 'outgoing') || items[0];
+        const latest = items[items.length - 1];
+        return {
+          ...primary,
+          preview: latest.preview || primary.preview,
+          repliedAt: latest.repliedAt || primary.repliedAt,
+          lastDirection: latest.direction,
+          messageCount: items.length,
+          threadItems: items
+        };
+      }).sort((a, b) => new Date(b.repliedAt || 0) - new Date(a.repliedAt || 0));
+    }
+    function renderReplyConversation(reply) {
+      const historyEl = document.getElementById('rv-chat-history');
+      if (!historyEl) return;
+      const items = getReplyConversationItems(reply);
+      if (!items.length) {
+        historyEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Sem mensagens adicionais nesta conversa.</div>';
+        return;
+      }
+      historyEl.innerHTML = items.map(item => {
+        const mine = item.direction === 'outgoing';
+        const atts = (item.attachments || '').split(';').map(a => a.trim()).filter(Boolean);
+        const who = mine ? 'Você' : esc(item.supplierName || 'Fornecedor');
+        return '<div style="display:flex;justify-content:' + (mine ? 'flex-end' : 'flex-start') + '"><div style="max-width:86%;background:' + (mine ? 'rgba(255,77,109,.12)' : 'rgba(77,255,195,.08)') + ';border:1px solid ' + (mine ? 'rgba(255,77,109,.22)' : 'rgba(77,255,195,.16)') + ';border-radius:14px;padding:12px 14px;color:var(--t2)"><div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:6px;font-size:10.5px;color:var(--t3);font-family:\'JetBrains Mono\',monospace"><span>' + who + '</span><span>' + fmtDT(item.repliedAt) + '</span></div><div style="white-space:pre-wrap;line-height:1.6;font-size:12.5px">' + esc(item.preview || '(sem conteúdo)') + '</div>' + (atts.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">' + atts.map(a => '<span class="tag tn" style="font-size:10px">📎 ' + esc(a) + '</span>').join('') + '</div>' : '') + '</div></div>';
+      }).join('');
+      historyEl.scrollTop = historyEl.scrollHeight;
+    }
+
     function loadAll() {
       try { const c = localStorage.getItem('sm_cfg'); if (c) CFG = { ...CFG, ...JSON.parse(c) }; } catch (e) { }
       try { const s = localStorage.getItem('sm_state'); if (s) S = { ...S, ...JSON.parse(s) }; } catch (e) { }
+      normalizeReplies();
     }
     function saveCfg() { localStorage.setItem('sm_cfg', JSON.stringify(CFG)); }
     function saveState() { localStorage.setItem('sm_state', JSON.stringify(S)); }
@@ -2529,8 +2630,26 @@
         procSubject: 'Cotação Q1 2025',
         preview: 'Prezados, segue nossa proposta. Podemos atender com prazo de 15 dias úteis e condições especiais.',
         repliedAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
-        link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx'
+        link: 'https://mail.google.com', attachments: 'proposta_Q1.pdf; tabela_precos.xlsx',
+        threadId: 'demo-thread-1', messageId: 'demo-msg-1', direction: 'incoming'
+      }, {
+        id: 2, procId: 1, sid: 1,
+        supplierName: 'Aço Brasil Ltda', supplierEmail: 'comercial@acobrasil.com',
+        procSubject: 'Cotação Q1 2025',
+        preview: 'Recebido. Poderiam confirmar se o frete está incluso?',
+        repliedAt: new Date(Date.now() - 86400000 * 1.1).toISOString(),
+        link: 'https://mail.google.com', attachments: '',
+        threadId: 'demo-thread-1', messageId: 'demo-msg-2', parentReplyId: 1, direction: 'outgoing'
+      }, {
+        id: 3, procId: 1, sid: 1,
+        supplierName: 'Aço Brasil Ltda', supplierEmail: 'comercial@acobrasil.com',
+        procSubject: 'Cotação Q1 2025',
+        preview: 'Sim, o frete já está contemplado na proposta enviada.',
+        repliedAt: new Date(Date.now() - 86400000 * 0.9).toISOString(),
+        link: 'https://mail.google.com', attachments: '',
+        threadId: 'demo-thread-1', messageId: 'demo-msg-3', parentReplyId: 2, direction: 'incoming'
       }];
+      normalizeReplies();
       saveState();
     }
 
@@ -2933,7 +3052,7 @@
       });
       const tbody = document.getElementById('sup-tbody');
       const empty = document.getElementById('sup-empty');
-      if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+      if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; updateSupBulkBar(); return; }
       empty.style.display = 'none';
       const TC = { Metal: 'tb', Plástico: 'to', Madeira: 'ty', Tecido: 'tr', Eletrônico: 'tg', Químico: 'tn', Embalagem: 'tn', Outro: 'tn' };
       tbody.innerHTML = '';
@@ -2962,6 +3081,7 @@
         bd.addEventListener('click', function (e) { e.stopPropagation(); delSup(s.id); });
         acts.appendChild(be); acts.appendChild(bt); acts.appendChild(bd);
       });
+      updateSupBulkBar();
     }
 
     function exportSupCSV() {
@@ -3416,7 +3536,24 @@
       if (CFG.apiUrl) {
         const data = await api('todas_respostas', {});
         if (data) {
-          S.replies = data.map(r => ({ id: r.ID, procId: r.Processo_ID, sid: r.Fornecedor_ID, supplierName: r.Nome_Fornecedor, supplierEmail: r.Email_Fornecedor, procSubject: r.Processo_Assunto, preview: r.Preview, repliedAt: r.Respondido_Em, link: r.Link_Email, attachments: r.Anexos || '' }));
+          S.replies = data.map(r => normReply({
+            id: r.ID,
+            procId: r.Processo_ID,
+            sid: r.Fornecedor_ID,
+            supplierName: r.Nome_Fornecedor,
+            supplierEmail: r.Email_Fornecedor,
+            procSubject: r.Processo_Assunto,
+            preview: r.Preview,
+            repliedAt: r.Respondido_Em,
+            link: r.Link_Email,
+            attachments: r.Anexos || '',
+            subject: r.Assunto_Resposta || '',
+            threadId: r.Thread_ID || '',
+            messageId: r.Mensagem_ID || '',
+            parentReplyId: r.Em_Resposta_A || '',
+            direction: r.Direcao || 'incoming'
+          }));
+          normalizeReplies();
           saveState();
         }
       }
@@ -3430,7 +3567,7 @@
       const rfp = document.getElementById('rep-fp'); const curFP = rfp.value;
       rfp.innerHTML = '<option value="">Todos os processos</option>';
       S.processes.forEach(p => { const o = document.createElement('option'); o.value = String(p.id); o.textContent = (p.subject || '').slice(0, 50); if (o.value === curFP) o.selected = true; rfp.appendChild(o); });
-      let reps = S.replies
+      let reps = getReplyConversationRoots()
         .filter(r => {
           const mq = !q || (r.supplierName || '').toLowerCase().includes(q) || (r.preview || '').toLowerCase().includes(q);
           const mp = !fp || String(r.procId) === String(fp);
@@ -3448,7 +3585,7 @@
         const at = (r.attachments || '').split(';').map(a => a.trim()).filter(Boolean).map(a => '<span class="tag tn" style="font-size:9.5px">📎 ' + esc(a) + '</span>').join(' ') || '—';
         const proc = S.processes.find(p => String(p.id) === String(r.procId));
         const tr = document.createElement('tr'); tr.className = 'fu'; tr.style.cursor = 'pointer';
-        tr.innerHTML = '<td><div style="font-weight:500">' + esc(r.supplierName) + '</div><div style="font-size:10.5px;color:var(--t3);font-family:\'JetBrains Mono\',monospace">' + esc(r.supplierEmail || '') + '</div></td><td><span style="font-size:12px;color:var(--a5)">' + esc(r.procSubject || proc?.subject || '—') + '</span></td><td style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--t2)">' + fmtDT(r.repliedAt) + '</td><td style="max-width:180px;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc((r.preview || '').slice(0, 80)) + '</td><td>' + at + '</td><td><button class="btn btn-blue btn-xs">👁 Abrir</button></td>';
+        tr.innerHTML = '<td><div style="font-weight:500">' + esc(r.supplierName) + '</div><div style="font-size:10.5px;color:var(--t3);font-family:\'JetBrains Mono\',monospace">' + esc(r.supplierEmail || '') + '</div></td><td><span style="font-size:12px;color:var(--a5)">' + esc(r.procSubject || proc?.subject || '—') + '</span><div style="font-size:10px;color:var(--t3);margin-top:4px">' + (r.messageCount || 1) + ' mensagem(ns) nesta conversa</div></td><td style="font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--t2)">' + fmtDT(r.repliedAt) + '</td><td style="max-width:180px;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc((r.preview || '').slice(0, 80)) + '</td><td>' + at + '</td><td><button class="btn btn-blue btn-xs">👁 Abrir</button></td>';
         const rid = String(r.id);
         tr.addEventListener('click', () => openReplyViewer(rid));
         tr.querySelector('.btn-blue').addEventListener('click', e => { e.stopPropagation(); openReplyViewer(rid); });
@@ -3457,26 +3594,98 @@
     }
 
     function openReplyViewer(id) {
-      const r = (window._repMap || {})[String(id)];
+      const r = normReply((window._repMap || {})[String(id)]);
       if (!r) { toast('Resposta não encontrada', 'var(--a1)'); return; }
       window._currentReply = r;
       const proc = S.processes.find(p => String(p.id) === String(r.procId));
-      document.getElementById('rv-supplier').textContent = r.supplierName + ' — ' + fmtDT(r.repliedAt);
-      document.getElementById('rv-subject').textContent = r.procSubject || proc?.subject || '(sem assunto)';
-      document.getElementById('rv-date').textContent = fmtDT(r.repliedAt);
+      const threadItems = getReplyConversationItems(r);
+      const primary = threadItems.find(item => item.direction !== 'outgoing') || r;
+      const latest = threadItems[threadItems.length - 1] || r;
+      document.getElementById('rv-supplier').textContent = r.supplierName + ' — ' + fmtDT(latest.repliedAt);
+      document.getElementById('rv-subject').textContent = primary.subject || r.procSubject || proc?.subject || '(sem assunto)';
+      document.getElementById('rv-date').textContent = fmtDT(primary.repliedAt);
       document.getElementById('rv-proc').textContent = proc?.subject || '—';
-      document.getElementById('rv-body').textContent = r.preview || '(sem conteúdo)';
-      document.getElementById('rv-gmail-link').href = r.link ? 'https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(r.link) : '#';
+      document.getElementById('rv-body').textContent = primary.preview || '(sem conteúdo)';
+      document.getElementById('rv-gmail-link').href = latest.link ? 'https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(latest.link) : '#';
+      document.getElementById('rv-reply-text').value = '';
+      document.getElementById('rv-reply-hint').textContent = CFG.apiUrl ? 'A resposta será enviada no mesmo thread do Gmail e ficará no histórico desta tratativa.' : 'Sem API configurada: a resposta ficará salva localmente para demonstração.';
+      document.getElementById('rv-send-btn').disabled = false;
+      renderReplyConversation(r);
 
-      const atts = (r.attachments || '').split(';').map(a => a.trim()).filter(Boolean);
+      const atts = (primary.attachments || '').split(';').map(a => a.trim()).filter(Boolean);
       const wrap = document.getElementById('rv-att-wrap');
       const list = document.getElementById('rv-att-list');
       if (atts.length) {
         wrap.style.display = 'block';
-        list.innerHTML = atts.map(a => `<button class="tag tn" style="font-size:12px;padding:5px 12px;cursor:pointer;border:1px solid var(--bd)" onclick="downloadAttachment('${r.link}','${a.replace(/'/g, "\\'")}')">📎 ${esc(a)}</button>`).join('');
+        list.innerHTML = atts.map(a => `<button class="tag tn" style="font-size:12px;padding:5px 12px;cursor:pointer;border:1px solid var(--bd)" onclick="downloadAttachment('${primary.link}','${a.replace(/'/g, "\\'")}')">📎 ${esc(a)}</button>`).join('');
       }
       else wrap.style.display = 'none';
       openModal('modal-reply-view');
+    }
+
+    async function replyToCurrentReply() {
+      const current = window._currentReply ? normReply(window._currentReply) : null;
+      if (!current) return;
+      const field = document.getElementById('rv-reply-text');
+      const sendBtn = document.getElementById('rv-send-btn');
+      const text = (field?.value || '').trim();
+      if (!text) { toast('Escreva uma resposta antes de enviar', 'var(--a1)'); return; }
+      const items = getReplyConversationItems(current);
+      const last = items[items.length - 1] || current;
+      const localId = S.replies.length ? Math.max(...S.replies.map(r => Number(r.id) || 0)) + 1 : 1;
+      const draft = normReply({
+        id: localId,
+        procId: current.procId,
+        sid: current.sid,
+        supplierName: current.supplierName,
+        supplierEmail: current.supplierEmail,
+        procSubject: current.procSubject,
+        subject: current.subject || current.procSubject,
+        preview: text,
+        repliedAt: new Date().toISOString(),
+        link: current.link,
+        attachments: '',
+        threadId: current.threadId,
+        parentReplyId: last.id,
+        direction: 'outgoing'
+      });
+      sendBtn.disabled = true;
+      try {
+        if (CFG.apiUrl) {
+          const saved = await api('responder_resposta', {
+            data: {
+              reply_id: current.id,
+              processo_id: current.procId,
+              fornecedor_id: current.sid,
+              nome_fornecedor: current.supplierName,
+              email_fornecedor: current.supplierEmail,
+              assunto: current.subject || current.procSubject,
+              corpo: text,
+              thread_id: current.threadId,
+              parent_reply_id: last.id
+            }
+          });
+          if (!saved) return;
+          S.replies.push(normReply({
+            ...draft,
+            id: saved.id || draft.id,
+            repliedAt: saved.respondidoEm || draft.repliedAt,
+            link: saved.linkEmail || draft.link,
+            messageId: saved.mensagemId || draft.messageId,
+            threadId: saved.threadId || draft.threadId
+          }));
+          toast('Resposta enviada e anexada ao histórico');
+        } else {
+          S.replies.push(draft);
+          toast('Resposta salva localmente no histórico');
+        }
+        normalizeReplies();
+        saveState();
+        renderReplies();
+        openReplyViewer(String(current.id));
+      } finally {
+        sendBtn.disabled = false;
+      }
     }
 
     async function saveProcObs(pid) {
@@ -3502,8 +3711,11 @@
     function printReplyPDF() {
       const r = window._currentReply; if (!r) return;
       const proc = S.processes.find(p => String(p.id) === String(r.procId));
-      const atts = (r.attachments || '').split(';').filter(Boolean);
-      openPrintWin('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resposta</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#222;line-height:1.6}h1{font-size:18px;border-bottom:2px solid #ff4d6d;padding-bottom:8px;color:#ff4d6d}.meta{background:#f5f5f5;border-radius:6px;padding:14px;margin:14px 0;font-size:13px}.body-sec{background:#fafafa;border-left:3px solid #ff4d6d;padding:14px;margin:14px 0;font-size:13px;white-space:pre-wrap}.footer{margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}@media print{body{margin:20px}}</style></head><body><h1>📧 Resposta — ShootMail</h1><div class="meta"><div><strong>Fornecedor:</strong> ' + r.supplierName + '</div><div><strong>Email:</strong> ' + (r.supplierEmail || '—') + '</div><div><strong>Data:</strong> ' + fmtDT(r.repliedAt) + '</div><div><strong>Processo:</strong> ' + (proc?.subject || '—') + '</div></div><div class="body-sec">' + (r.preview || '') + '</div>' + (atts.length ? '<p><strong>📎 Anexos:</strong> ' + atts.map(a => a.trim()).join(', ') + '</p>' : '') + '<div class="footer">ShootMail · ' + new Date().toLocaleString('pt-BR') + ' — use Ctrl+P para salvar como PDF</div></body></html>');
+      const items = getReplyConversationItems(r);
+      const primary = items.find(item => item.direction !== 'outgoing') || r;
+      const atts = (primary.attachments || '').split(';').filter(Boolean);
+      const histHtml = items.map(item => '<div style="margin:0 0 12px 0;padding:12px;border-radius:10px;background:' + (item.direction === 'outgoing' ? '#fff1f3' : '#f4fffb') + ';border:1px solid ' + (item.direction === 'outgoing' ? '#ffd0d8' : '#c8f4e5') + '"><div style="font-size:11px;color:#666;margin-bottom:6px"><strong>' + (item.direction === 'outgoing' ? 'Você' : item.supplierName) + '</strong> · ' + fmtDT(item.repliedAt) + '</div><div style="white-space:pre-wrap">' + esc(item.preview || '') + '</div></div>').join('');
+      openPrintWin('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resposta</title><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#222;line-height:1.6}h1{font-size:18px;border-bottom:2px solid #ff4d6d;padding-bottom:8px;color:#ff4d6d}.meta{background:#f5f5f5;border-radius:6px;padding:14px;margin:14px 0;font-size:13px}.body-sec{background:#fafafa;border-left:3px solid #ff4d6d;padding:14px;margin:14px 0;font-size:13px;white-space:pre-wrap}.footer{margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}h2{font-size:15px;margin-top:22px}@media print{body{margin:20px}}</style></head><body><h1>📧 Resposta — ShootMail</h1><div class="meta"><div><strong>Fornecedor:</strong> ' + primary.supplierName + '</div><div><strong>Email:</strong> ' + (primary.supplierEmail || '—') + '</div><div><strong>Data:</strong> ' + fmtDT(primary.repliedAt) + '</div><div><strong>Processo:</strong> ' + (proc?.subject || '—') + '</div></div><div class="body-sec">' + esc(primary.preview || '') + '</div>' + (atts.length ? '<p><strong>📎 Anexos:</strong> ' + atts.map(a => a.trim()).join(', ') + '</p>' : '') + '<h2>Histórico da conversa</h2>' + histHtml + '<div class="footer">ShootMail · ' + new Date().toLocaleString('pt-BR') + ' — use Ctrl+P para salvar como PDF</div></body></html>');
     }
 
     async function checkReplies() { const r = await api('verificar_respostas', {}); if (r && r.novas_respostas > 0) { toast('📬 ' + r.novas_respostas + ' nova(s) resposta(s)'); await syncAll(); } else { await loadReplies(); } }
@@ -4004,13 +4216,19 @@
     function updateSupBulkBar() {
       const sel = document.querySelectorAll('.sup-cb:checked');
       const bar = document.getElementById('sup-bulk-bar');
+      const btn = document.getElementById('sup-delete-selected-btn');
+      const master = document.getElementById('sup-cb-all');
+      const all = document.querySelectorAll('.sup-cb');
       if (!bar) return;
       if (sel.length > 0) {
         bar.style.display = 'flex';
         document.getElementById('sup-bulk-count').textContent = sel.length + ' fornecedor(es) selecionado(s)';
+        if (btn) btn.style.display = 'inline-flex';
       } else {
         bar.style.display = 'none';
+        if (btn) btn.style.display = 'none';
       }
+      if (master) master.checked = !!all.length && sel.length === all.length;
     }
 
 
