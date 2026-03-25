@@ -4169,21 +4169,46 @@
     function tcls(t) { return { Metal: 'tb', Plástico: 'to', Madeira: 'ty', Tecido: 'tr', Eletrônico: 'tg', Químico: 'tn', Embalagem: 'tn', Outro: 'tn' }[t] || 'tn'; }
     // ══ SETUP RESOURCES ══
     async function downloadGAS() {
+      const cacheBust = Date.now();
+      const sources = [
+        {
+          url: 'https://raw.githubusercontent.com/freitasnascimentomarinha-debug/ShootMail/main/google_apps_script.js?v=' + cacheBust,
+          success: '✅ Download concluído com a versão mais recente do repositório!'
+        },
+        {
+          url: './google_apps_script.js?v=' + cacheBust,
+          success: '✅ Download concluído!'
+        }
+      ];
+
       try {
         toast('⏳ Preparando download...');
-        const resp = await fetch('./google_apps_script.js?v=' + Date.now());
-        if (!resp.ok) throw new Error('Não foi possível carregar o arquivo local');
-        const code = await resp.text();
-        const blob = new Blob([code], { type: 'text/javascript' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'google_apps_script.js';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast('✅ Download concluído!');
+
+        let code = '';
+        for (const source of sources) {
+          try {
+            const resp = await fetch(source.url, { cache: 'no-store' });
+            if (!resp.ok) throw new Error('Falha ao carregar ' + source.url);
+            code = await resp.text();
+            if (code.trim()) {
+              const blob = new Blob([code], { type: 'text/javascript' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'google_apps_script.js';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast(source.success);
+              return;
+            }
+          } catch (err) {
+            console.warn('Falha ao obter Apps Script em', source.url, err);
+          }
+        }
+
+        throw new Error('Nenhuma fonte disponível para download');
       } catch (e) {
         console.error(e);
         toast('❌ Erro ao baixar arquivo. Tente copiar do repositório.', 'var(--a1)');
